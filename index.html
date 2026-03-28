@@ -1,0 +1,3066 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCB Design Calculator</title>
+<style>
+  :root {
+    --bg-page:   #f0f2f5;
+    --bg-card:   #ffffff;
+    --bg-input:  #ffffff;
+    --bg-diagram:#f8f9fa;
+    --accent:    #1a56db;
+    --text-pri:  #111827;
+    --text-sec:  #6b7280;
+    --border:    #e5e7eb;
+    --success:   #059669;
+    --warning:   #d97706;
+    --error:     #dc2626;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-page);
+    color: var(--text-pri);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  #app { max-width: 1040px; margin: 0 auto; padding: 20px 16px; }
+
+  /* Header */
+  .app-header {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 20px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    width: 40px; height: 40px; background: var(--accent);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; font-weight: 700;
+    color: #fff; flex-shrink: 0;
+  }
+  .title-area { flex: 1; }
+  .app-header h1 { font-size: 20px; font-weight: 700; }
+  .app-header p  { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
+
+  /* Unit Toggle */
+  .unit-toggle {
+    display: flex; border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  }
+  .unit-toggle button {
+    padding: 6px 18px; border: none; background: var(--bg-card);
+    color: var(--text-sec); cursor: pointer; font-size: 13px;
+    font-weight: 600; transition: all 0.15s;
+  }
+  .unit-toggle button.active { background: var(--accent); color: #fff; }
+  .unit-toggle button:not(:last-child) { border-right: 1px solid var(--border); }
+
+  /* Tabs */
+  .tab-nav {
+    display: flex; gap: 2px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border); overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 10px 18px; border: none; background: none;
+    color: var(--text-sec); cursor: pointer; font-size: 13px; font-weight: 500;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text-pri); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Panel grid */
+  .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .panel-grid { grid-template-columns: 1fr; } }
+
+  .calc-panel {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .panel-title {
+    font-size: 15px; font-weight: 700; color: var(--text-pri);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title::before {
+    content: ''; display: inline-block; width: 4px; height: 18px;
+    background: var(--accent); border-radius: 2px; flex-shrink: 0;
+  }
+
+  /* Diagram */
+  .diagram-area {
+    background: var(--bg-diagram); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 14px; padding: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .diagram-area svg { display: block; max-width: 100%; }
+
+  /* Help panel */
+  .help-wrap { max-width: 860px; }
+  .help-section { margin-bottom: 28px; }
+  .help-section h2 {
+    font-size: 15px; font-weight: 700; color: var(--accent);
+    margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 2px solid #dbeafe;
+  }
+  .help-section p { color: var(--text-sec); font-size: 13px; }
+  .help-ol, .help-ul {
+    padding-left: 20px; color: var(--text-sec); font-size: 13px; line-height: 2;
+  }
+  .help-tab-group { margin-bottom: 16px; }
+  .help-tab-label {
+    font-size: 12px; font-weight: 700; color: var(--text-sec);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .help-table-wrap { overflow-x: auto; }
+  .help-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .help-table th {
+    background: #f1f5f9; color: var(--text-sec);
+    font-weight: 600; text-align: left;
+    padding: 7px 10px; border-bottom: 1px solid var(--border);
+  }
+  .help-table td {
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    color: var(--text-pri); vertical-align: top;
+  }
+  .help-table tr:last-child td { border-bottom: none; }
+  .help-table tr:nth-child(even) td { background: #fafafa; }
+  .help-badges { font-size: 13px; color: var(--text-sec); line-height: 2.2; }
+  .badge-ok   { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #d1fae5; color: var(--success); font-weight: 600; font-size: 12px; }
+  .badge-warn { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #fef3c7; color: var(--warning); font-weight: 600; font-size: 12px; }
+  .badge-err  { display: inline-block; padding: 2px 10px; border-radius: 12px; background: #fee2e2; color: var(--error);   font-weight: 600; font-size: 12px; }
+  .help-section code {
+    background: #f1f5f9; padding: 1px 6px; border-radius: 4px;
+    font-family: monospace; font-size: 12px; color: var(--accent);
+  }
+
+  /* Description */
+  details.desc-box {
+    margin-bottom: 12px; border: 1px solid #bfdbfe;
+    border-radius: 8px; overflow: hidden;
+  }
+  details.desc-box summary {
+    padding: 7px 12px; font-size: 12px; color: var(--accent);
+    cursor: pointer; user-select: none; background: #eff6ff; font-weight: 500;
+    list-style: none; display: flex; align-items: center; gap: 6px;
+  }
+  details.desc-box summary::before { content: '▶'; font-size: 8px; transition: transform 0.15s; }
+  details.desc-box[open] summary::before { transform: rotate(90deg); }
+  details.desc-box summary:hover { color: #1e40af; }
+  details.desc-box .desc-body {
+    padding: 10px 12px; font-size: 12px; color: var(--text-sec);
+    background: #eff6ff; border-top: 1px solid #bfdbfe; line-height: 1.75;
+  }
+
+  /* Formula */
+  details.formula-box {
+    margin-bottom: 12px; border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  details.formula-box summary {
+    padding: 7px 12px; font-size: 12px; color: var(--text-sec);
+    cursor: pointer; user-select: none; background: #f9fafb; font-weight: 500;
+  }
+  details.formula-box summary:hover { color: var(--accent); }
+  details.formula-box .formula-body {
+    padding: 10px 12px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 11px; color: var(--text-sec);
+    background: #f9fafb; border-top: 1px solid var(--border); line-height: 1.9;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--text-sec);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+  }
+
+  /* Input grid */
+  .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .input-group.full { grid-column: 1 / -1; }
+  .input-group label { font-size: 12px; color: var(--text-sec); font-weight: 500; }
+  .input-row { display: flex; }
+  .input-row input, .input-row select {
+    flex: 1; min-width: 0; border: 1px solid var(--border);
+    border-right: none; border-radius: 7px 0 0 7px;
+    color: var(--text-pri); padding: 7px 10px; font-size: 13px;
+    background: var(--bg-input); transition: border-color 0.15s;
+  }
+  .input-row input:focus, .input-row select:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .input-unit {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 10px; background: #f3f4f6;
+    border: 1px solid var(--border); border-radius: 0 7px 7px 0;
+    font-size: 12px; color: var(--text-sec); font-weight: 500;
+    white-space: nowrap; min-width: 36px;
+  }
+  select.no-unit {
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 7px 10px; font-size: 13px;
+    background: var(--bg-input); color: var(--text-pri); width: 100%;
+  }
+  select.no-unit:focus { outline: none; border-color: var(--accent); }
+
+  /* Calc button */
+  .calc-btn {
+    width: 100%; padding: 9px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .calc-btn:hover { opacity: 0.88; }
+
+  /* Results */
+  .result-box { margin-top: 10px; border-radius: 8px; min-height: 0; }
+  .result-box:empty { display: none; }
+  .result-ok {
+    background: #ecfdf5; border: 1px solid #a7f3d0;
+    border-left: 3px solid var(--success); padding: 10px 12px; border-radius: 8px;
+  }
+  .result-warn {
+    background: #fffbeb; border: 1px solid #fcd34d;
+    border-left: 3px solid var(--warning); padding: 10px 12px; border-radius: 8px;
+  }
+  .result-err {
+    background: #fef2f2; border: 1px solid #fca5a5;
+    border-left: 3px solid var(--error); padding: 10px 12px;
+    border-radius: 8px; color: var(--error);
+  }
+  .result-row {
+    display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0;
+  }
+  .result-label { color: var(--text-sec); }
+  .result-value { font-family: "SFMono-Regular", Consolas, monospace; font-weight: 700; }
+  .result-unit { color: var(--text-sec); margin-left: 4px; font-weight: 400; }
+  .result-note {
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid #fcd34d;
+    color: var(--warning); font-size: 11px;
+  }
+  .result-ok .result-note { border-top-color: #a7f3d0; color: var(--success); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="app-header">
+    <div class="logo">P</div>
+    <div class="title-area">
+      <h1>PCB Design Calculator</h1>
+      <p>IPC-2221 · 阻抗控制 · Via 設計 · 訊號完整性 · BGA 封裝 · 電源完整性</p>
+    </div>
+    <div class="unit-toggle">
+      <button id="btn-mm" class="active" onclick="setUnit('mm')">mm</button>
+      <button id="btn-mil" onclick="setUnit('mil')">mil</button>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="trace">走線寬度 / 電流</button>
+    <button class="tab-btn" data-tab="impedance">阻抗控制</button>
+    <button class="tab-btn" data-tab="via">過孔 (Via)</button>
+    <button class="tab-btn" data-tab="si">訊號完整性</button>
+    <button class="tab-btn" data-tab="bga">BGA 封裝</button>
+    <button class="tab-btn" data-tab="pi">電源完整性</button>
+    <button class="tab-btn" data-tab="help">使用說明</button>
+  </div>
+
+  <!-- ── TAB 1: Trace ── -->
+  <div class="tab-panel active" id="tab-trace">
+    <div class="panel-grid">
+
+      <div class="calc-panel">
+        <div class="panel-title">IPC-2221 走線寬度</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">依據 IPC-2221 標準，根據通過的電流、允許的溫升和銅厚，計算確保走線不過熱所需的<strong>最小走線寬度</strong>。適用於電源走線和高電流信號線的設計。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="70" viewBox="0 0 260 70">
+            <rect x="20" y="36" width="220" height="26" fill="#dbeafe" stroke="#93c5fd" stroke-width="1" rx="2"/>
+            <text x="130" y="53" text-anchor="middle" font-size="10" fill="#1e40af">Dielectric</text>
+            <polygon points="82,36 178,36 170,14 90,14" fill="#f59e0b" stroke="#d97706" stroke-width="1.2"/>
+            <text x="130" y="28" text-anchor="middle" font-size="10" fill="#78350f" font-weight="700">Copper  W × T</text>
+            <line x1="82" y1="8" x2="178" y2="8" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="82,8 88,5 88,11" fill="#1a56db"/>
+            <polygon points="178,8 172,5 172,11" fill="#1a56db"/>
+            <text x="130" y="6" text-anchor="middle" font-size="9" fill="#1a56db">W</text>
+            <line x1="182" y1="14" x2="182" y2="36" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="182,14 179,20 185,20" fill="#1a56db"/>
+            <polygon points="182,36 179,30 185,30" fill="#1a56db"/>
+            <text x="190" y="28" font-size="9" fill="#1a56db">T</text>
+            <line x1="22" y1="24" x2="60" y2="24" stroke="#dc2626" stroke-width="1.5"/>
+            <polygon points="60,24 54,21 54,27" fill="#dc2626"/>
+            <text x="25" y="20" font-size="9" fill="#dc2626">I →</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>電流</label>
+            <div class="input-row">
+              <input id="ipc-current" type="number" min="0.01" step="0.1" value="1">
+              <span class="input-unit">A</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>允許溫升</label>
+            <div class="input-row">
+              <input id="ipc-dt" type="number" min="1" step="1" value="10">
+              <span class="input-unit">°C</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="ipc-t" type="number" min="0.005" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>層別</label>
+            <select id="ipc-layer" class="no-unit">
+              <option value="ext">外層 (External)</option>
+              <option value="int">內層 (Internal)</option>
+            </select>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Area (mil²) = [I / (k × ΔT^0.44)]^(1/0.725)<br>
+            W (mil) = Area / T (mil)，T (mil) = t (mm) × 39.37<br>
+            外層 k=0.048，內層 k=0.024<br>
+            參考：1 oz≈0.035 mm，0.5 oz≈0.0175 mm，2 oz≈0.070 mm
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="ipc-width">計算走線寬度</button>
+        <div class="result-box" id="result-ipc-width"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">走線最大電流</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">已知走線的幾何尺寸（寬度、銅厚），反推在指定溫升限制下能安全通過的<strong>最大電流</strong>。可用於驗證現有走線設計是否符合電流需求。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="70" viewBox="0 0 260 70">
+            <rect x="20" y="36" width="220" height="26" fill="#dbeafe" stroke="#93c5fd" stroke-width="1" rx="2"/>
+            <polygon points="72,36 188,36 180,14 80,14" fill="#f59e0b" stroke="#d97706" stroke-width="1.2"/>
+            <line x1="72" y1="42" x2="188" y2="42" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="72,42 78,39 78,45" fill="#1a56db"/>
+            <polygon points="188,42 182,39 182,45" fill="#1a56db"/>
+            <text x="130" y="52" text-anchor="middle" font-size="9" fill="#1a56db">W (input)</text>
+            <text x="130" y="28" text-anchor="middle" font-size="10" fill="#78350f" font-weight="700">I_max = ?</text>
+            <line x1="20" y1="24" x2="58" y2="24" stroke="#059669" stroke-width="2"/>
+            <polygon points="58,24 52,21 52,27" fill="#059669"/>
+            <text x="22" y="20" font-size="9" fill="#059669" font-weight="700">I_max →</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線寬度</label>
+            <div class="input-row">
+              <input id="mc-width" type="number" min="0.01" step="0.01" value="0.2" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>允許溫升</label>
+            <div class="input-row">
+              <input id="mc-dt" type="number" min="1" step="1" value="10">
+              <span class="input-unit">°C</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="mc-t" type="number" min="0.005" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>層別</label>
+            <select id="mc-layer" class="no-unit">
+              <option value="ext">外層 (External)</option>
+              <option value="int">內層 (Internal)</option>
+            </select>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            I_max = k × ΔT^0.44 × (W×T)^0.725<br>
+            W, T 均以 mil 為單位（T (mil) = t (mm) × 39.37）<br>
+            外層 k=0.048，內層 k=0.024
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="max-current">計算最大電流</button>
+        <div class="result-box" id="result-max-current"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">走線電阻 / 電壓降</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算走線的直流<strong>電阻、電壓降及功率損耗</strong>，並考慮溫度對銅電阻率的影響。常用於評估電源走線的壓降是否在允許範圍內（通常 &lt; 5% 供電電壓）。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線長度</label>
+            <div class="input-row">
+              <input id="tr-len" type="number" min="0.1" step="1" value="100" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線寬度</label>
+            <div class="input-row">
+              <input id="tr-width" type="number" min="0.01" step="0.01" value="0.2" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="tr-t" type="number" min="0.005" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>電流</label>
+            <div class="input-row">
+              <input id="tr-current" type="number" min="0" step="0.1" value="1">
+              <span class="input-unit">A</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>工作溫度</label>
+            <div class="input-row">
+              <input id="tr-temp" type="number" step="1" value="25">
+              <span class="input-unit">°C</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            R = ρ×L / (W×T)，ρ_Cu=1.724×10⁻⁸ Ω·m<br>
+            R(T) = R₀×[1+α(T−20)]，α=0.00393/°C<br>
+            V_drop = I×R，P = I²×R
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="trace-res">計算</button>
+        <div class="result-box" id="result-trace-res"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB 2: Impedance ── -->
+  <div class="tab-panel" id="tab-impedance">
+    <div class="panel-grid">
+
+      <div class="calc-panel">
+        <div class="panel-title">Microstrip 特性阻抗</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算 PCB <strong>表層走線</strong>（走線上方為空氣，下方為介質加參考平面）的特性阻抗。是最常見的受控阻抗結構，廣泛用於 USB、PCIe、DDR 等高速訊號的單端走線設計（目標通常 50 Ω）。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="78" viewBox="0 0 260 78">
+            <rect x="10" y="62" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="71" text-anchor="middle" font-size="9" fill="#fff">GND</text>
+            <rect x="10" y="34" width="240" height="28" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <text x="130" y="51" text-anchor="middle" font-size="10" fill="#1e40af">Dielectric  εr</text>
+            <rect x="96" y="24" width="68" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="130" y="32" text-anchor="middle" font-size="9" fill="#78350f" font-weight="700">W</text>
+            <line x1="14" y1="34" x2="14" y2="62" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="14,34 11,40 17,40" fill="#1a56db"/>
+            <polygon points="14,62 11,56 17,56" fill="#1a56db"/>
+            <text x="20" y="51" font-size="9" fill="#1a56db">h</text>
+            <text x="200" y="18" font-size="11" fill="#dc2626" font-weight="700">Z₀ = ?</text>
+            <text x="200" y="30" font-size="9" fill="#9ca3af">Air above</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="ms-w" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介質厚度 h</label>
+            <div class="input-row">
+              <input id="ms-h" type="number" min="0.01" step="0.01" value="0.10" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="ms-t" type="number" min="0.001" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="ms-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            εeff=(εr+1)/2+(εr−1)/2×(1+12h/w)^−0.5<br>
+            w/h≤1: Z0=(60/√εeff)×ln(8h/w+w/(4h))<br>
+            w/h&gt;1: Z0=120π/√εeff / (w/h+1.393+…)<br>
+            有效範圍：0.1 ≤ w/h ≤ 10
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="microstrip">計算阻抗</button>
+        <div class="result-box" id="result-microstrip"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">Stripline 特性阻抗</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算 PCB <strong>內層走線</strong>（被介質完全包圍，上下各有一個參考平面）的特性阻抗。屏蔽性優於表層走線，適合對 EMI 敏感或需要低雜訊的訊號，目標阻抗通常 50 Ω。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="78" viewBox="0 0 260 78">
+            <rect x="10" y="4" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="13" text-anchor="middle" font-size="9" fill="#fff">GND (top)</text>
+            <rect x="10" y="14" width="240" height="50" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <text x="22" y="44" font-size="9" fill="#1e40af">εr</text>
+            <rect x="96" y="32" width="68" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="130" y="40" text-anchor="middle" font-size="9" fill="#78350f" font-weight="700">W (embedded)</text>
+            <rect x="10" y="64" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="73" text-anchor="middle" font-size="9" fill="#fff">GND (bottom)</text>
+            <line x1="248" y1="14" x2="248" y2="64" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="248,14 245,20 251,20" fill="#1a56db"/>
+            <polygon points="248,64 245,58 251,58" fill="#1a56db"/>
+            <text x="252" y="42" font-size="9" fill="#1a56db">b</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="sl-w" type="number" min="0.01" step="0.01" value="0.15" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>平面間距 b</label>
+            <div class="input-row">
+              <input id="sl-b" type="number" min="0.01" step="0.01" value="0.36" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="sl-t" type="number" min="0.001" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="sl-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Z0=(60/√εr)×ln(4b / (0.67π×(0.8w+t)))<br>
+            b = 兩參考平面距離（介質總厚）
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="stripline">計算阻抗</button>
+        <div class="result-box" id="result-stripline"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">差分 Microstrip 阻抗</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算 PCB <strong>表層差分對</strong>（兩條走線並排）的差分阻抗。廣泛應用於 USB 2.0/3.x、HDMI、LVDS、PCIe 等差分訊號協定，目標差分阻抗通常為 90 Ω 或 100 Ω。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="78" viewBox="0 0 260 78">
+            <rect x="10" y="62" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="71" text-anchor="middle" font-size="9" fill="#fff">GND</text>
+            <rect x="10" y="34" width="240" height="28" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <rect x="60" y="24" width="56" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="88" y="32" text-anchor="middle" font-size="9" fill="#78350f">W</text>
+            <rect x="144" y="24" width="56" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="172" y="32" text-anchor="middle" font-size="9" fill="#78350f">W</text>
+            <line x1="116" y1="29" x2="144" y2="29" stroke="#dc2626" stroke-width="1"/>
+            <polygon points="116,29 122,26 122,32" fill="#dc2626"/>
+            <polygon points="144,29 138,26 138,32" fill="#dc2626"/>
+            <text x="130" y="22" text-anchor="middle" font-size="8" fill="#dc2626">s</text>
+            <line x1="14" y1="34" x2="14" y2="62" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="14,34 11,40 17,40" fill="#1a56db"/>
+            <polygon points="14,62 11,56 17,56" fill="#1a56db"/>
+            <text x="20" y="51" font-size="9" fill="#1a56db">h</text>
+            <text x="206" y="18" font-size="11" fill="#dc2626" font-weight="700">Zdiff</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="dm-w" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介質厚度 h</label>
+            <div class="input-row">
+              <input id="dm-h" type="number" min="0.01" step="0.01" value="0.10" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="dm-t" type="number" min="0.001" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線間距 s</label>
+            <div class="input-row">
+              <input id="dm-s" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="dm-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Zdiff = 2×Z0_single×(1−0.347×e^(−2.9s/h))<br>
+            s=走線間距，h=介質厚度
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="diff-micro">計算差分阻抗</button>
+        <div class="result-box" id="result-diff-micro"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">差分 Stripline 阻抗</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算 PCB <strong>內層差分對</strong>的差分阻抗。與表層差分對相比，內層走線受到上下參考平面屏蔽，EMI 輻射更低，適合高速差分訊號。常見目標阻抗為 100 Ω。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="78" viewBox="0 0 260 78">
+            <rect x="10" y="4" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="13" text-anchor="middle" font-size="9" fill="#fff">GND</text>
+            <rect x="10" y="14" width="240" height="50" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <text x="22" y="44" font-size="9" fill="#1e40af">εr</text>
+            <rect x="62" y="32" width="52" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="88" y="40" text-anchor="middle" font-size="9" fill="#78350f">W</text>
+            <rect x="146" y="32" width="52" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="172" y="40" text-anchor="middle" font-size="9" fill="#78350f">W</text>
+            <line x1="114" y1="37" x2="146" y2="37" stroke="#dc2626" stroke-width="1"/>
+            <polygon points="114,37 120,34 120,40" fill="#dc2626"/>
+            <polygon points="146,37 140,34 140,40" fill="#dc2626"/>
+            <text x="130" y="30" text-anchor="middle" font-size="8" fill="#dc2626">s</text>
+            <rect x="10" y="64" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="73" text-anchor="middle" font-size="9" fill="#fff">GND</text>
+            <line x1="248" y1="14" x2="248" y2="64" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="248,14 245,20 251,20" fill="#1a56db"/>
+            <polygon points="248,64 245,58 251,58" fill="#1a56db"/>
+            <text x="252" y="42" font-size="9" fill="#1a56db">b</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="ds-w" type="number" min="0.01" step="0.01" value="0.15" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>平面間距 b</label>
+            <div class="input-row">
+              <input id="ds-b" type="number" min="0.01" step="0.01" value="0.36" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="ds-t" type="number" min="0.001" step="0.001" value="0.035" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線間距 s</label>
+            <div class="input-row">
+              <input id="ds-s" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="ds-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Zdiff = 2×Z0_single×(1−0.374×e^(−2.9s/b))<br>
+            s=走線間距，b=平面間距
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="diff-strip">計算差分阻抗</button>
+        <div class="result-box" id="result-diff-strip"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">CPWG 阻抗 (Coplanar Waveguide)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算<strong>共面波導接地（CPWG）</strong>結構的特性阻抗。走線兩側有共面接地銅，底層有參考平面，常用於 RF/微波電路、天線饋線或需要嚴格阻抗控制的高頻訊號（如 Wi-Fi、BLE 射頻走線）。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="82" viewBox="0 0 260 82">
+            <rect x="10" y="66" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="75" text-anchor="middle" font-size="9" fill="#fff">GND</text>
+            <rect x="10" y="38" width="240" height="28" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <text x="28" y="55" font-size="9" fill="#1e40af">εr</text>
+            <!-- coplanar ground left -->
+            <rect x="10" y="28" width="54" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="37" y="36" text-anchor="middle" font-size="7" fill="#fff">GND</text>
+            <!-- trace center -->
+            <rect x="100" y="28" width="60" height="10" fill="#f59e0b" stroke="#d97706" stroke-width="1" rx="1"/>
+            <text x="130" y="36" text-anchor="middle" font-size="9" fill="#78350f" font-weight="700">W</text>
+            <!-- coplanar ground right -->
+            <rect x="196" y="28" width="54" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="223" y="36" text-anchor="middle" font-size="7" fill="#fff">GND</text>
+            <!-- gap arrows -->
+            <line x1="64" y1="33" x2="100" y2="33" stroke="#dc2626" stroke-width="1"/>
+            <polygon points="64,33 70,30 70,36" fill="#dc2626"/>
+            <polygon points="100,33 94,30 94,36" fill="#dc2626"/>
+            <text x="82" y="26" text-anchor="middle" font-size="8" fill="#dc2626">gap</text>
+            <line x1="160" y1="33" x2="196" y2="33" stroke="#dc2626" stroke-width="1"/>
+            <polygon points="160,33 166,30 166,36" fill="#dc2626"/>
+            <polygon points="196,33 190,30 190,36" fill="#dc2626"/>
+            <text x="178" y="26" text-anchor="middle" font-size="8" fill="#dc2626">gap</text>
+            <!-- h arrow -->
+            <line x1="248" y1="38" x2="248" y2="66" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="248,38 245,44 251,44" fill="#1a56db"/>
+            <polygon points="248,66 245,60 251,60" fill="#1a56db"/>
+            <text x="252" y="55" font-size="9" fill="#1a56db">h</text>
+            <text x="130" y="16" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="700">Z₀ = ?</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="cpw-w" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Gap (走線到共面地)</label>
+            <div class="input-row">
+              <input id="cpw-g" type="number" min="0.01" step="0.01" value="0.15" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介質厚度 h</label>
+            <div class="input-row">
+              <input id="cpw-h" type="number" min="0.01" step="0.01" value="0.10" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="cpw-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            k₁ = w/(w+2g)<br>
+            k₃ = tanh(πw/4h) / tanh(π(w+2g)/4h)<br>
+            εeff = 1 + (εr−1)/2 × q₃/q₁<br>
+            Z₀ = 60π / (√εeff × (q₁+q₃))<br>
+            q = K(k)/K'(k)（橢圓積分比）
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="cpwg">計算阻抗</button>
+        <div class="result-box" id="result-cpwg"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB 3: Via ── -->
+  <div class="tab-panel" id="tab-via">
+    <div class="panel-grid">
+
+      <div class="calc-panel">
+        <div class="panel-title">Via 電流容量</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">依 IPC-2221 評估通孔（via）在指定溫升下能安全承載的<strong>最大電流</strong>，主要由鑽孔直徑和電鍍銅厚決定導電截面積。常用於電源 via 的數量規劃（需要幾個並聯 via 才夠）。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="200" height="76" viewBox="0 0 200 76">
+            <rect x="30" y="4" width="140" height="9" fill="#f59e0b" stroke="#d97706" rx="1"/>
+            <text x="100" y="12" text-anchor="middle" font-size="8" fill="#78350f">Top Cu</text>
+            <rect x="30" y="13" width="140" height="30" fill="#dbeafe" stroke="#93c5fd"/>
+            <text x="100" y="31" text-anchor="middle" font-size="9" fill="#1e40af">PCB core (h)</text>
+            <rect x="30" y="43" width="140" height="9" fill="#f59e0b" stroke="#d97706" rx="1"/>
+            <text x="100" y="51" text-anchor="middle" font-size="8" fill="#78350f">Bot Cu</text>
+            <rect x="84" y="4" width="32" height="48" fill="white" stroke="#d1d5db" stroke-width="1"/>
+            <rect x="84" y="4" width="7" height="48" fill="#b87333" opacity="0.85"/>
+            <rect x="109" y="4" width="7" height="48" fill="#b87333" opacity="0.85"/>
+            <line x1="84" y1="60" x2="116" y2="60" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="84,60 90,57 90,63" fill="#1a56db"/>
+            <polygon points="116,60 110,57 110,63" fill="#1a56db"/>
+            <text x="100" y="72" text-anchor="middle" font-size="8" fill="#1a56db">drill ⌀</text>
+            <line x1="116" y1="18" x2="130" y2="12" stroke="#dc2626" stroke-width="1"/>
+            <text x="132" y="11" font-size="8" fill="#dc2626">t_plating</text>
+            <line x1="14" y1="8" x2="30" y2="8" stroke="#059669" stroke-width="2"/>
+            <polygon points="30,8 24,5 24,11" fill="#059669"/>
+            <text x="2" y="7" font-size="8" fill="#059669">I</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>鑽孔直徑</label>
+            <div class="input-row">
+              <input id="vc-drill" type="number" min="0.1" step="0.05" value="0.3" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>電鍍厚度</label>
+            <div class="input-row">
+              <input id="vc-plating" type="number" min="5" step="5" value="25">
+              <span class="input-unit">μm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>允許溫升</label>
+            <div class="input-row">
+              <input id="vc-dt" type="number" min="1" step="1" value="10">
+              <span class="input-unit">°C</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            A (mil²) = π×t_plating_mil×(d_drill_mil−t_plating_mil)<br>
+            I_max = k×ΔT^0.44×A^0.725，k=0.048
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="via-current">計算</button>
+        <div class="result-box" id="result-via-current"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">Via 電阻</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算通孔的直流<strong>電阻值</strong>（mΩ）。電源走線若需多個 via 並聯，可用此值估算並聯後的總電阻與電壓降，確保過孔不成為電源路徑的瓶頸。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>鑽孔直徑</label>
+            <div class="input-row">
+              <input id="vr-drill" type="number" min="0.1" step="0.05" value="0.3" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>電鍍厚度</label>
+            <div class="input-row">
+              <input id="vr-plating" type="number" min="5" step="5" value="25">
+              <span class="input-unit">μm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>PCB 厚度</label>
+            <div class="input-row">
+              <input id="vr-height" type="number" min="0.1" step="0.1" value="1.6" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            R = ρ×h / (π×t_plating×(d−t_plating))<br>
+            ρ_Cu=1.724×10⁻⁸ Ω·m，輸出 mΩ
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="via-res">計算</button>
+        <div class="result-box" id="result-via-res"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">Via 電感</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算通孔的<strong>寄生電感</strong>（nH）及在特定頻率下的感抗（Ω）。Via 電感在高頻時造成阻抗不連續，使去耦電容效果下降。電感越小（短、大孔）去耦效果越好。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>鑽孔直徑</label>
+            <div class="input-row">
+              <input id="vl-drill" type="number" min="0.1" step="0.05" value="0.3" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Via 高度 (PCB厚)</label>
+            <div class="input-row">
+              <input id="vl-height" type="number" min="0.1" step="0.1" value="1.6" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>評估頻率</label>
+            <div class="input-row">
+              <input id="vl-freq" type="number" min="1" step="100" value="1000">
+              <span class="input-unit">MHz</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            L (nH) = 5.08×h_in×[ln(4h/d)+1]<br>
+            Z_L = 2π×f×L（感抗）
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="via-ind">計算</button>
+        <div class="result-box" id="result-via-ind"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">Via 寄生電容</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算通孔 pad 與 antipad 之間形成的<strong>寄生電容</strong>（pF）。Via 電容與電感共同影響高速訊號通過通孔時的阻抗連續性，是訊號完整性仿真的重要參數。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>PCB 厚度</label>
+            <div class="input-row">
+              <input id="vcp-height" type="number" min="0.1" step="0.1" value="1.6" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Pad 直徑</label>
+            <div class="input-row">
+              <input id="vcp-pad" type="number" min="0.1" step="0.05" value="0.6" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>Antipad 直徑</label>
+            <div class="input-row">
+              <input id="vcp-antipad" type="number" min="0.1" step="0.05" value="1.0" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="vcp-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            C (pF) = 1.41×εr×h_in / ln(D_antipad / d_pad)<br>
+            同軸電容模型，h、D、d 單位為英寸
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="via-cap">計算</button>
+        <div class="result-box" id="result-via-cap"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">Via Stub 共振頻率</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">通孔穿透多層板後，訊號未連接的下段（stub）會在特定頻率產生<strong>四分之一波長共振</strong>，造成插入損耗峰值。此工具評估共振頻率是否落在訊號頻寬內，決定是否需要 back-drilling 去除 stub。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="200" height="82" viewBox="0 0 200 82">
+            <rect x="20" y="4" width="160" height="8" fill="#f59e0b" stroke="#d97706" rx="1"/>
+            <text x="100" y="11" text-anchor="middle" font-size="7" fill="#78350f">signal layer</text>
+            <rect x="20" y="12" width="160" height="42" fill="#dbeafe" stroke="#93c5fd"/>
+            <rect x="20" y="54" width="160" height="8" fill="#9ca3af" stroke="#6b7280" rx="1"/>
+            <text x="100" y="61" text-anchor="middle" font-size="7" fill="#fff">GND</text>
+            <!-- via barrel full -->
+            <rect x="94" y="4" width="12" height="58" fill="#b87333" stroke="#c07010" stroke-width="1"/>
+            <!-- stub portion (dashed highlight) -->
+            <rect x="92" y="12" width="16" height="42" fill="#dc2626" opacity="0.15" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,2"/>
+            <text x="80" y="38" text-anchor="end" font-size="9" fill="#dc2626" font-weight="700">stub</text>
+            <!-- stub length arrow -->
+            <line x1="118" y1="12" x2="118" y2="54" stroke="#dc2626" stroke-width="1"/>
+            <polygon points="118,12 115,18 121,18" fill="#dc2626"/>
+            <polygon points="118,54 115,48 121,48" fill="#dc2626"/>
+            <text x="126" y="36" font-size="8" fill="#dc2626">L_stub</text>
+            <!-- signal arrow -->
+            <line x1="30" y1="8" x2="90" y2="8" stroke="#059669" stroke-width="1.5"/>
+            <polygon points="90,8 84,5 84,11" fill="#059669"/>
+            <text x="32" y="6" font-size="7" fill="#059669">signal →</text>
+            <text x="100" y="76" text-anchor="middle" font-size="9" fill="#dc2626">f_res = c/(4×L_stub×√εr)</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>Stub 長度</label>
+            <div class="input-row">
+              <input id="vs-stub" type="number" min="0.1" step="0.1" value="1.0" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="vs-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            f_res = c / (4 × L_stub × √εr)<br>
+            stub 長度 = via 總長 − 訊號層到參考層的距離<br>
+            建議 f_res &gt; 2× 訊號最高頻率成分
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="via-stub">計算</button>
+        <div class="result-box" id="result-via-stub"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">環寬檢查 (Annular Ring)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">驗證通孔的<strong>環形銅環（Annular Ring）</strong>寬度是否符合製程最低要求。環寬不足時，鑽孔偏差可能導致銅環斷裂，造成電氣斷路。IPC Class 2 標準要求最小環寬 ≥ 0.05 mm（HDI）或 ≥ 0.075 mm（標準製程）。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="180" height="82" viewBox="0 0 180 82">
+            <!-- pad circle -->
+            <circle cx="90" cy="41" r="32" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/>
+            <!-- drill hole -->
+            <circle cx="90" cy="41" r="18" fill="white" stroke="#6b7280" stroke-width="1.5"/>
+            <circle cx="90" cy="41" r="18" fill="#f0f2f5"/>
+            <!-- annular ring dimension -->
+            <line x1="90" y1="41" x2="122" y2="41" stroke="#1a56db" stroke-width="1"/>
+            <line x1="90" y1="41" x2="90" y2="9" stroke="#d97706" stroke-width="1" stroke-dasharray="2,2"/>
+            <text x="106" y="38" font-size="8" fill="#1a56db">pad_r</text>
+            <line x1="90" y1="41" x2="108" y2="41" stroke="#dc2626" stroke-width="1"/>
+            <text x="99" y="48" font-size="7" fill="#dc2626">drill_r</text>
+            <!-- ring highlight -->
+            <path d="M 108,41 A 18,18 0 0 1 90,23" fill="none" stroke="#059669" stroke-width="3" opacity="0.6"/>
+            <text x="115" y="28" font-size="9" fill="#059669" font-weight="700">ring</text>
+            <!-- labels -->
+            <text x="90" y="45" text-anchor="middle" font-size="8" fill="#6b7280">drill</text>
+            <text x="50" y="55" font-size="8" fill="#d97706">pad</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>Pad 直徑</label>
+            <div class="input-row">
+              <input id="ar-pad" type="number" min="0.1" step="0.05" value="0.6" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>鑽孔直徑</label>
+            <div class="input-row">
+              <input id="ar-drill" type="number" min="0.1" step="0.05" value="0.3" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>最小環寬要求</label>
+            <div class="input-row">
+              <input id="ar-min" type="number" min="0.01" step="0.01" value="0.075" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            annular ring = (pad ⌀ − drill ⌀) / 2<br>
+            標準製程 ≥ 0.075 mm，HDI ≥ 0.050 mm
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="annular-ring">計算</button>
+        <div class="result-box" id="result-annular-ring"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">板厚孔徑比 (Aspect Ratio)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算板厚與鑽孔直徑的比值（AR），決定通孔電鍍的<strong>製程難度</strong>。AR 越高，鍍液越難到達孔壁中段，導致電鍍不均勻甚至孔壁失銅。標準製程 AR ≤ 8:1，HDI 製程 ≤ 12:1。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>PCB 總厚度</label>
+            <div class="input-row">
+              <input id="asp-h" type="number" min="0.1" step="0.1" value="1.6" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>鑽孔直徑</label>
+            <div class="input-row">
+              <input id="asp-d" type="number" min="0.1" step="0.05" value="0.3" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            AR = PCB 厚度 / 鑽孔直徑<br>
+            標準製程 ≤ 8:1，進階 ≤ 10:1，HDI ≤ 12:1
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="aspect-ratio">計算</button>
+        <div class="result-box" id="result-aspect-ratio"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB 4: SI ── -->
+  <div class="tab-panel" id="tab-si">
+    <div class="panel-grid">
+
+      <div class="calc-panel">
+        <div class="panel-title">趨膚深度 (Skin Depth)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">高頻電流傾向集中在導體表面的薄層，此深度稱為<strong>趨膚深度（δ）</strong>。δ 決定了導體的有效截面積：當銅厚大於 2δ 時，AC 電阻顯著增加，是高頻訊號損耗的主要原因之一。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>頻率</label>
+            <div class="input-row">
+              <input id="sk-freq" type="number" min="0.001" step="100" value="1000">
+              <span class="input-unit">MHz</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>導體厚度</label>
+            <div class="input-row">
+              <input id="sk-thick" type="number" min="1" step="5" value="35">
+              <span class="input-unit">μm</span>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>材料</label>
+            <select id="sk-mat" class="no-unit">
+              <option value="1.724e-8">銅 (Copper)</option>
+              <option value="1.59e-8">銀 (Silver)</option>
+              <option value="2.44e-8">金 (Gold)</option>
+              <option value="2.82e-8">鋁 (Aluminum)</option>
+            </select>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            δ (μm) = 503×√(ρ / (μr×f_Hz))<br>
+            R_AC/R_DC ≈ t/(2δ)（當 t &gt;&gt; δ 時）
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="skin-depth">計算</button>
+        <div class="result-box" id="result-skin-depth"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">臨界走線長度</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">判斷走線是否需要按<strong>傳輸線</strong>設計（受控阻抗＋端接）的長度門檻。走線超過臨界長度後，反射效應不可忽略，必須做阻抗匹配。常用規則：走線長度 ≥ 上升時間對應傳播距離的 1/6。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>訊號上升時間</label>
+            <div class="input-row">
+              <input id="cl-rise" type="number" min="1" step="10" value="200">
+              <span class="input-unit">ps</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>有效介電常數 εeff</label>
+            <div class="input-row">
+              <input id="cl-er" type="number" min="1" step="0.1" value="3.5">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            f_knee = 0.35/t_rise，v_prop = c/√εeff<br>
+            l_crit(rise) = v_prop×t_rise/6<br>
+            l_crit(λ/10) = v_prop/(10×f_knee)
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="crit-len">計算</button>
+        <div class="result-box" id="result-crit-len"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">傳播延遲</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算訊號在走線上的<strong>傳播時間（ps）</strong>。用於設計時序裕量分析、差分對長度匹配（skew 計算），以及 DDR/匯流排等對時序敏感的走線長度規劃。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線長度</label>
+            <div class="input-row">
+              <input id="pd-len" type="number" min="1" step="10" value="100" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="pd-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>走線類型</label>
+            <select id="pd-type" class="no-unit">
+              <option value="ms">Microstrip（外層）</option>
+              <option value="sl">Stripline（內層）</option>
+            </select>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Microstrip TD (ps/inch) = 85×√(0.475εr+0.67)<br>
+            Stripline  TD (ps/inch) = 85×√εr
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="prop-delay">計算</button>
+        <div class="result-box" id="result-prop-delay"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">反射係數 / 回波損耗</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算傳輸線末端因<strong>阻抗不匹配</strong>而產生的反射係數（Γ）、回波損耗（Return Loss）及 VSWR。反射波形疊加在原始訊號上，可能造成過衝、欠衝或眼圖閉合，是高速設計中需要優先解決的問題。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>傳輸線阻抗 Z0</label>
+            <div class="input-row">
+              <input id="rf-z0" type="number" min="1" step="1" value="50">
+              <span class="input-unit">Ω</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>負載阻抗 ZL</label>
+            <div class="input-row">
+              <input id="rf-zl" type="number" min="1" step="1" value="75">
+              <span class="input-unit">Ω</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Γ = (ZL−Z0)/(ZL+Z0)<br>
+            Return Loss = −20×log₁₀|Γ|  (dB)<br>
+            VSWR = (1+|Γ|)/(1−|Γ|)
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="reflection">計算</button>
+        <div class="result-box" id="result-reflection"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">串擾估算 (Crosstalk)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">評估相鄰走線因電磁耦合產生的<strong>串擾（Crosstalk）</strong>干擾量，並驗證是否符合 3W / 5W 間距規則。間距不足時，aggressor 訊號會在 victim 線上感應出雜訊，影響邏輯電平和眼圖。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="80" viewBox="0 0 260 80">
+            <rect x="10" y="64" width="240" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="130" y="73" text-anchor="middle" font-size="9" fill="#fff">GND</text>
+            <rect x="10" y="36" width="240" height="28" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <!-- aggressor trace -->
+            <rect x="54" y="26" width="60" height="10" fill="#dc2626" stroke="#b91c1c" stroke-width="1" rx="1"/>
+            <text x="84" y="34" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">aggressor</text>
+            <!-- victim trace -->
+            <rect x="146" y="26" width="60" height="10" fill="#059669" stroke="#047857" stroke-width="1" rx="1"/>
+            <text x="176" y="34" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">victim</text>
+            <!-- coupling arrows -->
+            <line x1="114" y1="28" x2="146" y2="28" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>
+            <line x1="114" y1="34" x2="146" y2="34" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>
+            <text x="130" y="22" text-anchor="middle" font-size="8" fill="#d97706" font-weight="700">coupling</text>
+            <!-- s arrow -->
+            <line x1="114" y1="42" x2="146" y2="42" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="114,42 120,39 120,45" fill="#1a56db"/>
+            <polygon points="146,42 140,39 140,45" fill="#1a56db"/>
+            <text x="130" y="52" text-anchor="middle" font-size="8" fill="#1a56db">s</text>
+            <!-- h -->
+            <line x1="16" y1="36" x2="16" y2="64" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="16,36 13,42 19,42" fill="#1a56db"/>
+            <polygon points="16,64 13,58 19,58" fill="#1a56db"/>
+            <text x="22" y="53" font-size="9" fill="#1a56db">h</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線間距 s (edge-to-edge)</label>
+            <div class="input-row">
+              <input id="xt-s" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介質厚度 h</label>
+            <div class="input-row">
+              <input id="xt-h" type="number" min="0.01" step="0.01" value="0.10" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="xt-w" type="number" min="0.01" step="0.01" value="0.12" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>耦合長度</label>
+            <div class="input-row">
+              <input id="xt-len" type="number" min="1" step="1" value="50" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Kb ≈ 1 / (1 + (s/h)²)（近端串擾係數）<br>
+            NEXT (dB) = 20×log₁₀(Kb)<br>
+            3W rule: 中心距 D ≥ 3W → NEXT &lt; −40 dB<br>
+            5W rule: 中心距 D ≥ 5W → NEXT &lt; −50 dB
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="crosstalk">計算</button>
+        <div class="result-box" id="result-crosstalk"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">微帶線串擾電壓 (Crosstalk Voltage)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">直接計算相鄰微帶線上的<strong>串擾電壓幅度（V_crosstalk）</strong>。根據走線長度與訊號上升時間的關係分兩種情況：若來回傳播時間 Tp &lt; 上升時間 Tr，串擾與長度成正比（未飽和）；若 Tp &gt; Tr，串擾與長度無關，達到飽和最大值。影響串擾幅度最主要的參數是間距與介質厚度的比值（S/H）。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="300" height="130" viewBox="0 0 300 130">
+            <!-- cross-section label -->
+            <text x="150" y="12" text-anchor="middle" font-size="9" fill="#6b7280">截面示意圖</text>
+            <!-- ground plane -->
+            <rect x="10" y="100" width="280" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="150" y="109" text-anchor="middle" font-size="8" fill="#fff">GND</text>
+            <!-- dielectric -->
+            <rect x="10" y="50" width="280" height="50" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+            <text x="150" y="78" text-anchor="middle" font-size="8" fill="#3b82f6">介質 εr</text>
+            <!-- aggressor trace -->
+            <rect x="55" y="38" width="70" height="14" fill="#dc2626" stroke="#b91c1c" stroke-width="1" rx="2"/>
+            <text x="90" y="49" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">Aggressor</text>
+            <!-- victim trace -->
+            <rect x="175" y="38" width="70" height="14" fill="#059669" stroke="#047857" stroke-width="1" rx="2"/>
+            <text x="210" y="49" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">Victim</text>
+            <!-- S arrow -->
+            <line x1="125" y1="44" x2="175" y2="44" stroke="#d97706" stroke-width="1.2"/>
+            <polygon points="125,44 131,41 131,47" fill="#d97706"/>
+            <polygon points="175,44 169,41 169,47" fill="#d97706"/>
+            <text x="150" y="39" text-anchor="middle" font-size="9" fill="#d97706" font-weight="700">S</text>
+            <!-- H arrow -->
+            <line x1="22" y1="52" x2="22" y2="100" stroke="#1a56db" stroke-width="1.2"/>
+            <polygon points="22,52 19,58 25,58" fill="#1a56db"/>
+            <polygon points="22,100 19,94 25,94" fill="#1a56db"/>
+            <text x="32" y="80" font-size="9" fill="#1a56db" font-weight="700">H</text>
+            <!-- coupling wave -->
+            <path d="M125,32 Q137,26 150,32 Q163,38 175,32" stroke="#d97706" stroke-width="1" fill="none" stroke-dasharray="3,2"/>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線間距 S (edge-to-edge)</label>
+            <div class="input-row">
+              <input id="xv-s" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介質厚度 H</label>
+            <div class="input-row">
+              <input id="xv-h" type="number" min="0.01" step="0.01" value="0.10" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線長度 l</label>
+            <div class="input-row">
+              <input id="xv-len" type="number" min="1" step="1" value="50" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="xv-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>攻擊訊號電壓 V</label>
+            <div class="input-row">
+              <input id="xv-v" type="number" min="0.1" step="0.1" value="3.3">
+              <span class="input-unit">V</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>訊號上升時間 Tr</label>
+            <div class="input-row">
+              <input id="xv-tr" type="number" min="0.01" step="0.1" value="1.0">
+              <span class="input-unit">ns</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            來回傳播時間：Tp = 2 × l × 85 × √(0.475εr + 0.67) ps（l 單位 inch）<br>
+            若 Tp ≤ Tr（未飽和）：V_xt = V / (1+(S/H)²) × (Tp/Tr)<br>
+            若 Tp &gt; Tr（飽和）：V_xt = V / (1+(S/H)²)<br>
+            串擾主要由 S/H 比值決定；走線夠長時達到飽和最大值。
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="xt-voltage">計算</button>
+        <div class="result-box" id="result-xt-voltage"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">帶狀線串擾電壓 (Stripline Crosstalk Voltage)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算帶狀線（夾在兩個參考平面之間的內層走線）的<strong>串擾電壓幅度</strong>。與微帶線不同，帶狀線需考慮 aggressor 和 victim 各自距地平面的高度（h₁、h₂），以有效間距 S_eff 和有效高度評估耦合強度。兩條走線在同一層時可選「對稱模式」；不同層時選「非對稱」並自訂 h₁、h₂。飽和時（Tp &gt; Tr）串擾幅度的分母項為平方，衰減比微帶線更快。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="320" height="138" viewBox="0 0 320 138">
+            <!-- Top GND -->
+            <rect x="10" y="10" width="268" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="144" y="19" text-anchor="middle" font-size="8" fill="#fff">GND</text>
+            <!-- Bottom GND -->
+            <rect x="10" y="118" width="268" height="10" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="144" y="127" text-anchor="middle" font-size="8" fill="#fff">GND</text>
+            <!-- Dielectric -->
+            <rect x="10" y="20" width="268" height="98" fill="#dbeafe" stroke="#93c5fd" stroke-width="0.5"/>
+            <text x="144" y="76" text-anchor="middle" font-size="8" fill="#3b82f6" font-style="italic">εr 介質</text>
+            <!-- Aggressor (h1≈0.33H → center y=86) -->
+            <rect x="28" y="81" width="65" height="10" fill="#dc2626" stroke="#b91c1c" stroke-width="1" rx="2"/>
+            <text x="60" y="89" text-anchor="middle" font-size="7" fill="#fff" font-weight="700">Aggressor</text>
+            <!-- Victim (h2≈0.67H → center y=52) -->
+            <rect x="158" y="47" width="65" height="10" fill="#059669" stroke="#047857" stroke-width="1" rx="2"/>
+            <text x="190" y="55" text-anchor="middle" font-size="7" fill="#fff" font-weight="700">Victim</text>
+            <!-- S_eff dashed line: aggressor center → victim center -->
+            <line x1="60" y1="86" x2="190" y2="52" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>
+            <text x="132" y="61" text-anchor="middle" font-size="8" fill="#d97706" font-style="italic">S_eff</text>
+            <!-- S arrow horizontal at y=106 -->
+            <line x1="93" y1="106" x2="158" y2="106" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="93,106 99,103 99,109" fill="#1a56db"/>
+            <polygon points="158,106 152,103 152,109" fill="#1a56db"/>
+            <text x="125" y="117" text-anchor="middle" font-size="9" fill="#1a56db" font-weight="700">S</text>
+            <!-- h1 arrow: x=20, from y=86 to y=118 -->
+            <line x1="20" y1="86" x2="20" y2="118" stroke="#7c3aed" stroke-width="1"/>
+            <polygon points="20,86 17,92 23,92" fill="#7c3aed"/>
+            <polygon points="20,118 17,112 23,112" fill="#7c3aed"/>
+            <text x="26" y="105" font-size="8" fill="#7c3aed" font-weight="700">h₁</text>
+            <!-- h2 arrow: x=232, from y=52 to y=118 -->
+            <line x1="232" y1="52" x2="232" y2="118" stroke="#7c3aed" stroke-width="1"/>
+            <polygon points="232,52 229,58 235,58" fill="#7c3aed"/>
+            <polygon points="232,118 229,112 235,112" fill="#7c3aed"/>
+            <text x="238" y="90" font-size="8" fill="#7c3aed" font-weight="700">h₂</text>
+            <!-- H arrow: x=285, from y=20 to y=118 -->
+            <line x1="285" y1="20" x2="285" y2="118" stroke="#374151" stroke-width="1"/>
+            <polygon points="285,20 282,26 288,26" fill="#374151"/>
+            <polygon points="285,118 282,112 288,112" fill="#374151"/>
+            <text x="295" y="72" font-size="9" fill="#374151" font-weight="700">H</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group full">
+            <label>走線配置</label>
+            <select id="sxt-sym" class="no-unit" onchange="(function(){document.getElementById('sxt-hh').style.display=document.getElementById('sxt-sym').value==='asym'?'contents':'none'})()">
+              <option value="sym">對稱帶狀線（h₁ = h₂ = H/2）</option>
+              <option value="asym">非對稱帶狀線（自訂 h₁、h₂）</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>走線間距 S (edge-to-edge)</label>
+            <div class="input-row">
+              <input id="sxt-s" type="number" min="0.01" step="0.01" value="0.20" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>總介質厚度 H（兩 GND 間）</label>
+            <div class="input-row">
+              <input id="sxt-H" type="number" min="0.01" step="0.01" value="0.36" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div id="sxt-hh" style="display:none">
+            <div class="input-group">
+              <label>Aggressor 高度 h₁（距底部 GND）</label>
+              <div class="input-row">
+                <input id="sxt-h1" type="number" min="0.01" step="0.01" value="0.12" data-dim="len">
+                <span class="input-unit du">mm</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Victim 高度 h₂（距底部 GND）</label>
+              <div class="input-row">
+                <input id="sxt-h2" type="number" min="0.01" step="0.01" value="0.24" data-dim="len">
+                <span class="input-unit du">mm</span>
+              </div>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線長度 l</label>
+            <div class="input-row">
+              <input id="sxt-len" type="number" min="1" step="1" value="50" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="sxt-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>攻擊訊號電壓 V</label>
+            <div class="input-row">
+              <input id="sxt-v" type="number" min="0.1" step="0.1" value="3.3">
+              <span class="input-unit">V</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>訊號上升時間 Tr</label>
+            <div class="input-row">
+              <input id="sxt-tr" type="number" min="0.01" step="0.1" value="1.0">
+              <span class="input-unit">ns</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            有效間距：S_eff = √(S² + (h₂−h₁)²)<br>
+            有效高度：h₁eff = h₁(H−h₁)/H，h₂eff = h₂(H−h₂)/H<br>
+            耦合參數：K = S²_eff / (h₁eff × h₂eff)<br>
+            Tp = 2×l×85×√(0.475εr+0.67) ps（l 單位 inch）<br>
+            Tp ≤ Tr（未飽和）：V_xt = V/(1+K) × Tp/Tr<br>
+            Tp &gt; Tr（飽和）：V_xt = V/(1+K²)<br>
+            對稱時（h₁=h₂=H/2）：K = 16S²/H²
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="xt-sl-voltage">計算</button>
+        <div class="result-box" id="result-xt-sl-voltage"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">等長計算 (Length Matching)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">根據允許的時序偏差（skew）需求，換算出差分對或匯流排中各訊號線需要<strong>補償的長度差</strong>。設計蛇形繞線（meander）時，可直接用此值決定需要繞多長。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>目標延遲差</label>
+            <div class="input-row">
+              <input id="lm-td" type="number" min="0.1" step="1" value="10">
+              <span class="input-unit">ps</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>介電常數 εr</label>
+            <div class="input-row">
+              <input id="lm-er" type="number" min="1" step="0.1" value="4.3">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>走線類型</label>
+            <select id="lm-type" class="no-unit">
+              <option value="ms">Microstrip（外層）</option>
+              <option value="sl">Stripline（內層）</option>
+            </select>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            ΔL = ΔTD / TD_per_unit_length<br>
+            Microstrip TD = 85×√(0.475εr+0.67) ps/inch<br>
+            Stripline TD = 85×√εr ps/inch
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="len-match">計算</button>
+        <div class="result-box" id="result-len-match"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">介質波長計算 (Wavelength)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算訊號在 PCB 介質中特定頻率下的<strong>波長（λ）</strong>。λ/10 是傳輸線效應起始的長度門檻，λ/4 是共振長度。RF 電路的天線、匹配網路和濾波器設計都依賴波長計算。</div>
+        </details>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>頻率</label>
+            <div class="input-row">
+              <input id="wl-freq" type="number" min="0.001" step="0.1" value="5">
+              <span class="input-unit">GHz</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>有效介電常數 εeff</label>
+            <div class="input-row">
+              <input id="wl-er" type="number" min="1" step="0.1" value="3.5">
+              <span class="input-unit">—</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            λ = c / (f × √εeff)<br>
+            λ/10 為傳輸線效應起始長度<br>
+            λ/4 為共振長度
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="wavelength">計算</button>
+        <div class="result-box" id="result-wavelength"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">走線自感 (Trace Self-Inductance)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body"><strong>走線自感（Partial Self-Inductance）</strong>描述一段孤立走線本身的電感量，不考慮回流路徑。主要影響電源線和地線的電感雜訊：走線越長、越細，自感越大。自感大會導致電源軌道上的 di/dt 電壓尖峰和 EMI 問題。與 Via 電感串聯是評估電源完整性的重要參數。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="300" height="100" viewBox="0 0 300 100">
+            <!-- Top view label -->
+            <text x="100" y="11" text-anchor="middle" font-size="8" fill="#6b7280">俯視圖（Top View）</text>
+            <!-- Trace body -->
+            <rect x="15" y="18" width="178" height="28" fill="#fecaca" stroke="#dc2626" stroke-width="1.5" rx="2"/>
+            <!-- Current arrow inside -->
+            <line x1="35" y1="32" x2="170" y2="32" stroke="#dc2626" stroke-width="1.5"/>
+            <polygon points="170,32 162,28 162,36" fill="#dc2626"/>
+            <text x="100" y="29" text-anchor="middle" font-size="8" fill="#b91c1c">I →</text>
+            <!-- l arrow below -->
+            <line x1="15" y1="60" x2="193" y2="60" stroke="#1a56db" stroke-width="1.2"/>
+            <polygon points="15,60 21,57 21,63" fill="#1a56db"/>
+            <polygon points="193,60 187,57 187,63" fill="#1a56db"/>
+            <text x="104" y="73" text-anchor="middle" font-size="10" fill="#1a56db" font-weight="700">l</text>
+            <!-- w arrow left -->
+            <line x1="8" y1="18" x2="8" y2="46" stroke="#059669" stroke-width="1.2"/>
+            <polygon points="8,18 5,24 11,24" fill="#059669"/>
+            <polygon points="8,46 5,40 11,40" fill="#059669"/>
+            <text x="3" y="35" font-size="10" fill="#059669" font-weight="700">w</text>
+            <!-- Divider -->
+            <line x1="208" y1="8" x2="208" y2="90" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3,2"/>
+            <!-- Cross-section label -->
+            <text x="255" y="11" text-anchor="middle" font-size="8" fill="#6b7280">截面（End View）</text>
+            <!-- Cross-section trace box -->
+            <rect x="228" y="38" width="48" height="16" fill="#fecaca" stroke="#dc2626" stroke-width="1.5" rx="1"/>
+            <!-- w arrow top -->
+            <line x1="228" y1="30" x2="276" y2="30" stroke="#059669" stroke-width="1.2"/>
+            <polygon points="228,30 234,27 234,33" fill="#059669"/>
+            <polygon points="276,30 270,27 270,33" fill="#059669"/>
+            <text x="252" y="25" text-anchor="middle" font-size="10" fill="#059669" font-weight="700">w</text>
+            <!-- t arrow right -->
+            <line x1="283" y1="38" x2="283" y2="54" stroke="#d97706" stroke-width="1.2"/>
+            <polygon points="283,38 280,44 286,44" fill="#d97706"/>
+            <polygon points="283,54 280,48 286,48" fill="#d97706"/>
+            <text x="292" y="49" font-size="10" fill="#d97706" font-weight="700">t</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線長度 l</label>
+            <div class="input-row">
+              <input id="ti-len" type="number" min="0.1" step="1" value="50" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="ti-w" type="number" min="0.01" step="0.01" value="0.15" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="ti-t" type="number" min="1" step="5" value="35">
+              <span class="input-unit">μm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>評估頻率（感抗）</label>
+            <div class="input-row">
+              <input id="ti-freq" type="number" min="0" step="10" value="100">
+              <span class="input-unit">MHz</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Grover 矩形導體自感公式：<br>
+            L (nH) = 0.2×l×[ln(2l/(w+t)) + 0.5 + 0.2235×(w+t)/l]<br>
+            l、w 單位 mm；t 自動從 μm 換算<br>
+            感抗：Z = 2π×f×L<br>
+            適用條件：l ≥ 5×(w+t)
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="trace-ind">計算</button>
+        <div class="result-box" id="result-trace-ind"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">回路電感 (Loop Inductance)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body"><strong>回路電感（Loop Inductance）</strong>考慮訊號走線與地平面回流路徑所形成的完整電流迴路。走線高度 h（介質厚度）越大，回路面積越大，電感越大；走線越寬則電感越小。回路電感是訊號完整性和 EMI 分析中最重要的寄生電感，直接影響傳輸線的每單位長度電感值（L = Z₀×√εeff/c）。降低回路電感的有效方法是縮短走線距地高度（使用更薄的介質層）。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="300" height="130" viewBox="0 0 300 130">
+            <!-- Ground plane -->
+            <rect x="20" y="102" width="260" height="12" fill="#9ca3af" stroke="#6b7280" stroke-width="1" rx="1"/>
+            <text x="150" y="111" text-anchor="middle" font-size="8" fill="#fff">GND（地平面）</text>
+            <!-- Dielectric -->
+            <rect x="20" y="56" width="260" height="46" fill="#dbeafe" stroke="#93c5fd" stroke-width="0.5"/>
+            <text x="150" y="82" text-anchor="middle" font-size="8" fill="#3b82f6" font-style="italic">介質</text>
+            <!-- Trace -->
+            <rect x="110" y="43" width="80" height="13" fill="#fecaca" stroke="#dc2626" stroke-width="1.5" rx="2"/>
+            <!-- Forward current arrow in trace -->
+            <line x1="122" y1="49" x2="176" y2="49" stroke="#dc2626" stroke-width="1.5"/>
+            <polygon points="176,49 168,45 168,53" fill="#dc2626"/>
+            <text x="149" y="45" text-anchor="middle" font-size="7" fill="#b91c1c">I →</text>
+            <!-- Return current arrow in ground plane -->
+            <line x1="178" y1="108" x2="122" y2="108" stroke="#374151" stroke-width="1.5"/>
+            <polygon points="122,108 130,104 130,112" fill="#374151"/>
+            <text x="150" y="122" text-anchor="middle" font-size="7" fill="#374151">← 回流</text>
+            <!-- Loop dashed lines on sides -->
+            <line x1="28" y1="49" x2="28" y2="108" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>
+            <line x1="272" y1="49" x2="272" y2="108" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>
+            <text x="53" y="82" text-anchor="middle" font-size="8" fill="#b45309" font-style="italic">回路</text>
+            <!-- h arrow left -->
+            <line x1="12" y1="56" x2="12" y2="102" stroke="#7c3aed" stroke-width="1.2"/>
+            <polygon points="12,56 9,62 15,62" fill="#7c3aed"/>
+            <polygon points="12,102 9,96 15,96" fill="#7c3aed"/>
+            <text x="5" y="82" font-size="10" fill="#7c3aed" font-weight="700">h</text>
+            <!-- w arrow above trace -->
+            <line x1="110" y1="34" x2="190" y2="34" stroke="#059669" stroke-width="1.2"/>
+            <polygon points="110,34 116,31 116,37" fill="#059669"/>
+            <polygon points="190,34 184,31 184,37" fill="#059669"/>
+            <text x="150" y="28" text-anchor="middle" font-size="10" fill="#059669" font-weight="700">w</text>
+            <!-- t label on right of trace -->
+            <line x1="196" y1="43" x2="196" y2="56" stroke="#d97706" stroke-width="1.2"/>
+            <polygon points="196,43 193,49 199,49" fill="#d97706"/>
+            <polygon points="196,56 193,50 199,50" fill="#d97706"/>
+            <text x="204" y="52" font-size="10" fill="#d97706" font-weight="700">t</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>走線長度 l</label>
+            <div class="input-row">
+              <input id="li-len" type="number" min="0.1" step="1" value="50" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線寬度 w</label>
+            <div class="input-row">
+              <input id="li-w" type="number" min="0.01" step="0.01" value="0.15" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線距地高度 h（介質厚度）</label>
+            <div class="input-row">
+              <input id="li-h" type="number" min="0.01" step="0.01" value="0.1" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>銅厚 t</label>
+            <div class="input-row">
+              <input id="li-t" type="number" min="1" step="5" value="35">
+              <span class="input-unit">μm</span>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>評估頻率（感抗）</label>
+            <div class="input-row">
+              <input id="li-freq" type="number" min="0" step="10" value="100">
+              <span class="input-unit">MHz</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            L_loop (nH) = 0.4 × l × ln(4h / (0.8w + t))<br>
+            源自：L_loop = (μ₀/π)×l×ln(2h/r_eff)，r_eff=(0.8w+t)/2<br>
+            l、w、h 單位 mm；t 自動從 μm 換算<br>
+            與傳輸線關係：L_loop/l = Z₀×√εeff / c<br>
+            降低回路電感：縮小 h（介質薄）或增大 w（走線寬）
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="loop-ind">計算</button>
+        <div class="result-box" id="result-loop-ind"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB 5: BGA ── -->
+  <div class="tab-panel" id="tab-bga">
+    <div class="panel-grid">
+
+      <div class="calc-panel">
+        <div class="panel-title">BGA Via 尺寸建議</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">依 BGA 球距和球徑，推薦合適的 PCB pad 直徑、via 鑽孔、antipad 及 dog-bone 走線長度。自動判斷適合採用 <strong>Dog-bone</strong>（標準出線）或 <strong>Via-in-Pad</strong>（球距 ≤ 0.5 mm）設計。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="138" viewBox="0 0 260 138">
+            <!-- 4 BGA pads (NSMD): solder mask opening (outer dashed) + copper pad -->
+            <!-- TL -->
+            <circle cx="52" cy="24" r="18" fill="none" stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2"/>
+            <circle cx="52" cy="24" r="13" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+            <!-- TR -->
+            <circle cx="188" cy="24" r="18" fill="none" stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2"/>
+            <circle cx="188" cy="24" r="13" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+            <!-- BL -->
+            <circle cx="52" cy="110" r="18" fill="none" stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2"/>
+            <circle cx="52" cy="110" r="13" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+            <!-- BR -->
+            <circle cx="188" cy="110" r="18" fill="none" stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2"/>
+            <circle cx="188" cy="110" r="13" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+
+            <!-- Diagonal line TL→BR (p√2 direction, dashed) -->
+            <line x1="52" y1="24" x2="188" y2="110" stroke="#9ca3af" stroke-width="1" stroke-dasharray="5,3"/>
+
+            <!-- Clearance gaps highlighted in green -->
+            <!-- TL pad edge → via near-edge (along diagonal) -->
+            <!-- diagonal unit: (136,86)/160 ≈ (0.845,0.534) -->
+            <!-- TL edge: (52+11,24+7)=(63,31); via near: (120-7,67-4)=(113,63) -->
+            <line x1="63" y1="31" x2="113" y2="63" stroke="#059669" stroke-width="3" stroke-linecap="round"/>
+            <!-- via far-edge → BR pad edge -->
+            <!-- via far: (120+7,67+4)=(127,71); BR edge: (188-11,110-7)=(177,103) -->
+            <line x1="127" y1="71" x2="177" y2="103" stroke="#059669" stroke-width="3" stroke-linecap="round"/>
+
+            <!-- Dog-bone trace from BL pad to via -->
+            <line x1="63" y1="103" x2="113" y2="71" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"/>
+
+            <!-- Via pad in center -->
+            <circle cx="120" cy="67" r="8" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/>
+            <circle cx="120" cy="67" r="4" fill="white" stroke="#9ca3af" stroke-width="1"/>
+
+            <!-- p arrow (horizontal pitch, top) -->
+            <line x1="52" y1="5" x2="188" y2="5" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="52,5 58,2 58,8" fill="#1a56db"/>
+            <polygon points="188,5 182,2 182,8" fill="#1a56db"/>
+            <text x="120" y="4" text-anchor="middle" font-size="9" fill="#1a56db">p</text>
+
+            <!-- d arrow (pad diameter, right of TR pad) -->
+            <line x1="207" y1="11" x2="207" y2="37" stroke="#d97706" stroke-width="1"/>
+            <polygon points="207,11 204,17 210,17" fill="#d97706"/>
+            <polygon points="207,37 204,31 210,31" fill="#d97706"/>
+            <text x="214" y="28" font-size="9" fill="#d97706">d</text>
+
+            <!-- D arrow (via pad diameter) -->
+            <line x1="120" y1="59" x2="120" y2="75" stroke="#dc2626" stroke-width="1"/>
+            <polygon points="120,59 117,65 123,65" fill="#dc2626"/>
+            <polygon points="120,75 117,69 123,69" fill="#dc2626"/>
+            <text x="131" y="72" font-size="9" fill="#dc2626">D</text>
+
+            <!-- clearance label -->
+            <text x="68" y="44" font-size="8" fill="#059669" font-weight="700">clr</text>
+
+            <!-- p√2 label rotated on diagonal -->
+            <text x="148" y="76" font-size="8" fill="#9ca3af" transform="rotate(32,148,76)">p√2</text>
+
+            <!-- Formula -->
+            <text x="130" y="128" text-anchor="middle" font-size="9" fill="#111827" font-weight="700">D_max = p√2 − d − 0.2 mm</text>
+            <text x="130" y="138" text-anchor="middle" font-size="8" fill="#6b7280">（IPC 0.1 mm 間隙 × 兩側）</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>BGA 球距 (pitch)</label>
+            <div class="input-row">
+              <input id="bga-pitch" type="number" min="0.3" step="0.05" value="0.8" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>NSMD Pad 直徑 d</label>
+            <div class="input-row">
+              <input id="bga-pad" type="number" min="0.1" step="0.05" value="0.35" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>走線間距 (clearance)</label>
+            <div class="input-row">
+              <input id="bga-clr" type="number" min="0.05" step="0.01" value="0.1" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            ① 對角線間隙限制：D_max = p√2 − d − 0.2（對角間隙 ≥ 0.1 mm × 兩側）<br>
+            ② Dog-bone 限制：D_dog = p − d（via 置於相鄰兩 pad 中點時的最大 via pad）<br>
+            via drill = D − 0.2 mm（0.1 mm 環寬 × 兩側）<br>
+            antipad = D_max + 2×clearance<br>
+            NSMD pad 通常 ≈ ball × 0.80～1.0（依製程規格書）
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="bga-via">計算</button>
+        <div class="result-box" id="result-bga-via"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">BGA 走線最小寬度</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">給定要在兩個 BGA pad 之間走 <strong>n 條訊號線</strong>，計算 W（走線寬度）與 S（走線間距）的最小值。公式將 pad 間淨空間等分為 <em>2n+1</em> 份（n 條線 + n+1 個間距），W = S = 淨空間 / (2n+1)。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="100" viewBox="0 0 260 100">
+            <!-- gap regions (green) -->
+            <rect x="70" y="20" width="40" height="50" fill="#d1fae5" rx="1"/>
+            <rect x="150" y="20" width="40" height="50" fill="#d1fae5" rx="1"/>
+            <!-- trace -->
+            <rect x="110" y="26" width="40" height="38" fill="#f59e0b" rx="2" opacity="0.9"/>
+            <text x="130" y="50" text-anchor="middle" font-size="9" fill="#78350f" font-weight="700">trace</text>
+            <!-- left BGA pad -->
+            <circle cx="52" cy="45" r="18" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+            <!-- right BGA pad -->
+            <circle cx="208" cy="45" r="18" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+            <!-- pitch arrow (bottom) -->
+            <line x1="52" y1="79" x2="208" y2="79" stroke="#1a56db" stroke-width="1"/>
+            <polygon points="52,79 58,76 58,82" fill="#1a56db"/>
+            <polygon points="208,79 202,76 202,82" fill="#1a56db"/>
+            <text x="130" y="90" text-anchor="middle" font-size="9" fill="#1a56db">p (pitch)</text>
+            <!-- d arrow (pad diameter) -->
+            <line x1="34" y1="27" x2="70" y2="27" stroke="#d97706" stroke-width="1"/>
+            <polygon points="34,27 40,24 40,30" fill="#d97706"/>
+            <polygon points="70,27 64,24 64,30" fill="#d97706"/>
+            <text x="52" y="22" text-anchor="middle" font-size="8" fill="#d97706">d</text>
+            <!-- gap W labels (top arrows) -->
+            <line x1="70" y1="11" x2="110" y2="11" stroke="#059669" stroke-width="1"/>
+            <polygon points="70,11 76,8 76,14" fill="#059669"/>
+            <polygon points="110,11 104,8 104,14" fill="#059669"/>
+            <text x="90" y="9" text-anchor="middle" font-size="8" fill="#059669">W</text>
+            <line x1="150" y1="11" x2="190" y2="11" stroke="#059669" stroke-width="1"/>
+            <polygon points="150,11 156,8 156,14" fill="#059669"/>
+            <polygon points="190,11 184,8 184,14" fill="#059669"/>
+            <text x="170" y="9" text-anchor="middle" font-size="8" fill="#059669">W</text>
+            <!-- trace W label (top) -->
+            <line x1="110" y1="11" x2="150" y2="11" stroke="#d97706" stroke-width="1"/>
+            <polygon points="110,11 116,8 116,14" fill="#d97706"/>
+            <polygon points="150,11 144,8 144,14" fill="#d97706"/>
+            <!-- formula -->
+            <text x="130" y="100" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="700">W = S = (p − d) / (2n + 1)</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>BGA 球距 (pitch)</label>
+            <div class="input-row">
+              <input id="bmt-pitch" type="number" min="0.3" step="0.05" value="0.65" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>NSMD Pad 直徑 (d)</label>
+            <div class="input-row">
+              <input id="bmt-pad" type="number" min="0.1" step="0.05" value="0.35" data-dim="len">
+              <span class="input-unit du">mm</span>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>走線條數 (n)</label>
+            <div class="input-row">
+              <input id="bmt-n" type="number" min="1" max="5" step="1" value="1">
+              <span class="input-unit">條</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            淨空間 = pitch − d<br>
+            W_min = S_min = (pitch − d) / (2n + 1)<br>
+            n=1 → 3等份；n=2 → 5等份
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="bga-mintrace">計算</button>
+        <div class="result-box" id="result-bga-mintrace"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── TAB 6: Power Integrity ── -->
+  <div class="tab-panel" id="tab-pi">
+    <div class="panel-grid">
+
+      <div class="calc-panel">
+        <div class="panel-title">旁路電容自諧振 (Bypass Cap SRF)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">計算去耦電容的<strong>自諧振頻率（SRF）</strong>：頻率低於 SRF 時電容呈電容性（有效去耦），高於 SRF 則呈電感性（去耦失效）。幫助選擇正確容值的去耦電容，使其 SRF 涵蓋目標頻段。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="70" viewBox="0 0 260 70">
+            <!-- capacitor symbol -->
+            <line x1="30" y1="35" x2="80" y2="35" stroke="#111" stroke-width="2"/>
+            <line x1="80" y1="18" x2="80" y2="52" stroke="#111" stroke-width="2.5"/>
+            <line x1="90" y1="18" x2="90" y2="52" stroke="#111" stroke-width="2.5"/>
+            <line x1="90" y1="35" x2="110" y2="35" stroke="#111" stroke-width="2"/>
+            <text x="85" y="63" text-anchor="middle" font-size="9" fill="#1a56db" font-weight="700">C</text>
+            <!-- ESL inductor symbol -->
+            <line x1="110" y1="35" x2="120" y2="35" stroke="#111" stroke-width="2"/>
+            <path d="M 120,35 C 125,20 130,20 135,35 C 140,50 145,50 150,35 C 155,20 160,20 165,35" fill="none" stroke="#111" stroke-width="2"/>
+            <line x1="165" y1="35" x2="175" y2="35" stroke="#111" stroke-width="2"/>
+            <text x="142" y="63" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="700">ESL</text>
+            <!-- ESR -->
+            <line x1="175" y1="35" x2="185" y2="35" stroke="#111" stroke-width="2"/>
+            <rect x="185" y="28" width="30" height="14" fill="none" stroke="#111" stroke-width="2"/>
+            <line x1="215" y1="35" x2="230" y2="35" stroke="#111" stroke-width="2"/>
+            <text x="200" y="56" text-anchor="middle" font-size="9" fill="#6b7280">ESR</text>
+            <!-- SRF label -->
+            <text x="130" y="12" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="700">f_SRF = 1/(2π√LC)</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>電容值</label>
+            <div class="input-row">
+              <input id="cap-c" type="number" min="0.001" step="1" value="100">
+              <span class="input-unit">nF</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>ESL (等效串聯電感)</label>
+            <div class="input-row">
+              <input id="cap-esl" type="number" min="0.01" step="0.1" value="0.5">
+              <span class="input-unit">nH</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>ESR (等效串聯電阻)</label>
+            <div class="input-row">
+              <input id="cap-esr" type="number" min="0" step="1" value="10">
+              <span class="input-unit">mΩ</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>評估頻率 (選填)</label>
+            <div class="input-row">
+              <input id="cap-freq" type="number" min="0" step="1" value="100">
+              <span class="input-unit">MHz</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            f_SRF = 1/(2π√(C×ESL))<br>
+            f &lt; f_SRF: 電容性（有效去耦）<br>
+            f &gt; f_SRF: 電感性（失效）<br>
+            Z(f) = √(ESR² + (2πfL − 1/(2πfC))²)
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="cap-srf">計算</button>
+        <div class="result-box" id="result-cap-srf"></div>
+      </div>
+
+      <div class="calc-panel">
+        <div class="panel-title">PDN 目標阻抗 (Target Impedance)</div>
+        <details class="desc-box">
+          <summary>用途說明</summary>
+          <div class="desc-body">根據供電電壓、允許的電壓漣波百分比和負載瞬態電流突變，計算<strong>電源分配網路（PDN）</strong>在所有頻率下需達到的最大阻抗目標值。是規劃去耦電容數量與佈局的設計起點。</div>
+        </details>
+        <div class="diagram-area">
+          <svg width="260" height="70" viewBox="0 0 260 70">
+            <!-- power rail -->
+            <line x1="20" y1="18" x2="240" y2="18" stroke="#dc2626" stroke-width="2.5"/>
+            <text x="24" y="14" font-size="9" fill="#dc2626" font-weight="700">VDD</text>
+            <!-- ground rail -->
+            <line x1="20" y1="56" x2="240" y2="56" stroke="#111" stroke-width="2.5"/>
+            <text x="24" y="66" font-size="9" fill="#111" font-weight="700">GND</text>
+            <!-- IC load -->
+            <rect x="140" y="24" width="50" height="26" fill="#dbeafe" stroke="#1a56db" stroke-width="1.5" rx="3"/>
+            <text x="165" y="40" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="700">IC Load</text>
+            <line x1="165" y1="18" x2="165" y2="24" stroke="#111" stroke-width="1.5"/>
+            <line x1="165" y1="50" x2="165" y2="56" stroke="#111" stroke-width="1.5"/>
+            <!-- ΔI arrow -->
+            <line x1="190" y1="18" x2="190" y2="56" stroke="#d97706" stroke-width="1.5"/>
+            <polygon points="190,50 187,44 193,44" fill="#d97706"/>
+            <text x="198" y="40" font-size="9" fill="#d97706" font-weight="700">ΔI</text>
+            <!-- Ztarget label -->
+            <text x="80" y="40" text-anchor="middle" font-size="10" fill="#059669" font-weight="700">Z_target = ΔV/ΔI</text>
+            <!-- VDD ± ΔV -->
+            <text x="230" y="14" font-size="8" fill="#dc2626">±ΔV</text>
+          </svg>
+        </div>
+        <div class="section-label">輸入參數</div>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>供電電壓 V_DD</label>
+            <div class="input-row">
+              <input id="pdn-v" type="number" min="0.1" step="0.1" value="1.0">
+              <span class="input-unit">V</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>允許漣波 (ripple)</label>
+            <div class="input-row">
+              <input id="pdn-pct" type="number" min="0.1" step="0.5" value="5">
+              <span class="input-unit">%</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label>瞬態電流 ΔI</label>
+            <div class="input-row">
+              <input id="pdn-di" type="number" min="0.01" step="0.1" value="2">
+              <span class="input-unit">A</span>
+            </div>
+          </div>
+        </div>
+        <details class="formula-box">
+          <summary>公式參考</summary>
+          <div class="formula-body">
+            Z_target = (V_DD × ripple%) / ΔI<br>
+            PDN 在所有頻率的阻抗需 ≤ Z_target<br>
+            通常 FPGA/CPU 需 &lt; 10 mΩ
+          </div>
+        </details>
+        <button class="calc-btn" data-calc="pdn-target">計算</button>
+        <div class="result-box" id="result-pdn-target"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-help">
+    <div class="help-wrap">
+
+      <div class="help-section">
+        <h2>快速開始</h2>
+        <ol class="help-ol">
+          <li>用瀏覽器（Chrome / Firefox / Edge / Safari）直接開啟 <code>index.html</code>，無需安裝或網路連線。</li>
+          <li>點選上方分頁切換計算類別。</li>
+          <li>展開計算器標題下的「▶ 用途說明」，了解該計算器的用途。</li>
+          <li>填入輸入參數後，按「計算」按鈕顯示結果；再按一次可收合結果。</li>
+        </ol>
+      </div>
+
+      <div class="help-section">
+        <h2>單位切換</h2>
+        <p>右上角可在 <strong>mm</strong>（公釐）和 <strong>mil</strong>（千分之一英寸）之間切換。切換後，所有長度輸入欄位和計算結果會自動換算。</p>
+        <p style="margin-top:6px;color:var(--text-sec);">1 mil = 0.0254 mm &nbsp;|&nbsp; 1 mm ≈ 39.37 mil</p>
+      </div>
+
+      <div class="help-section">
+        <h2>結果顏色說明</h2>
+        <div class="help-badges">
+          <span class="badge-ok">綠色</span> 計算結果在正常範圍內 &nbsp;&nbsp;
+          <span class="badge-warn">黃色</span> 接近或超出建議範圍，需注意 &nbsp;&nbsp;
+          <span class="badge-err">紅色</span> 輸入有誤或超出製程能力
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h2>計算器總覽（30 個）</h2>
+
+        <div class="help-tab-group">
+          <div class="help-tab-label">走線寬度 / 電流</div>
+          <div class="help-table-wrap">
+            <table class="help-table">
+              <tr><th>#</th><th>名稱</th><th>用途</th><th>輸入</th><th>輸出</th></tr>
+              <tr><td>1</td><td>IPC-2221 走線寬度</td><td>依電流、溫升、銅厚算出最小走線寬度</td><td>電流 (A)、溫升 (°C)、銅厚 t、外/內層</td><td>最小走線寬度</td></tr>
+              <tr><td>2</td><td>走線最大電流</td><td>已知尺寸，反推最大安全電流</td><td>走線寬度、銅厚 t、溫升、外/內層</td><td>最大電流 (A)</td></tr>
+              <tr><td>3</td><td>走線電阻 / 電壓降</td><td>計算走線電阻、電壓降、功率損耗</td><td>長度、寬度、銅厚 t、溫度、電流</td><td>電阻 (mΩ)、電壓降 (mV)、損耗 (mW)</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="help-tab-group">
+          <div class="help-tab-label">阻抗控制</div>
+          <div class="help-table-wrap">
+            <table class="help-table">
+              <tr><th>#</th><th>名稱</th><th>用途</th><th>輸入</th><th>輸出</th></tr>
+              <tr><td>4</td><td>Microstrip Z0</td><td>表層走線特性阻抗（常見目標 50 Ω）</td><td>w、h、t、εr</td><td>Z0 (Ω)、εeff</td></tr>
+              <tr><td>5</td><td>Stripline Z0</td><td>內層走線特性阻抗</td><td>w、b、t、εr</td><td>Z0 (Ω)</td></tr>
+              <tr><td>6</td><td>差分 Microstrip</td><td>表層差分對阻抗（目標 90/100 Ω）</td><td>w、h、t、s、εr</td><td>Zdiff、Z0 (Ω)</td></tr>
+              <tr><td>7</td><td>差分 Stripline</td><td>內層差分對阻抗</td><td>w、b、t、s、εr</td><td>Zdiff、Z0 (Ω)</td></tr>
+              <tr><td>8</td><td>CPWG 阻抗</td><td>共面波導接地 RF 結構阻抗</td><td>w、g（gap）、h、εr</td><td>Z0 (Ω)、εeff</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="help-tab-group">
+          <div class="help-tab-label">過孔 (Via)</div>
+          <div class="help-table-wrap">
+            <table class="help-table">
+              <tr><th>#</th><th>名稱</th><th>用途</th><th>輸入</th><th>輸出</th></tr>
+              <tr><td>9</td><td>Via 電流容量</td><td>通孔最大安全電流（IPC-2221）</td><td>鑽孔直徑、電鍍厚度、溫升</td><td>最大電流 (A)</td></tr>
+              <tr><td>10</td><td>Via 電阻</td><td>通孔直流電阻</td><td>鑽孔直徑、電鍍厚度、PCB 厚度</td><td>電阻 (mΩ)</td></tr>
+              <tr><td>11</td><td>Via 電感</td><td>通孔寄生電感及高頻感抗</td><td>鑽孔直徑、PCB 厚度、評估頻率</td><td>電感 (nH)、感抗 (Ω)</td></tr>
+              <tr><td>12</td><td>Via 寄生電容</td><td>Pad 與 Antipad 間同軸電容</td><td>PCB 厚度、Pad 直徑、Antipad 直徑、εr</td><td>電容 (pF)</td></tr>
+              <tr><td>13</td><td>Via Stub 共振</td><td>評估 stub 四分之一波長共振頻率</td><td>Stub 長度、εr</td><td>共振頻率 (GHz)</td></tr>
+              <tr><td>14</td><td>環寬檢查</td><td>驗證 Annular Ring 是否符合製程要求</td><td>Pad 直徑、鑽孔直徑、最小環寬要求</td><td>環寬 (mm)、PASS/FAIL</td></tr>
+              <tr><td>15</td><td>板厚孔徑比</td><td>通孔電鍍製程難度評估</td><td>PCB 厚度、鑽孔直徑</td><td>AR 比值、製程等級</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="help-tab-group">
+          <div class="help-tab-label">訊號完整性</div>
+          <div class="help-table-wrap">
+            <table class="help-table">
+              <tr><th>#</th><th>名稱</th><th>用途</th><th>輸入</th><th>輸出</th></tr>
+              <tr><td>16</td><td>趨膚深度</td><td>高頻電流集中深度與 AC/DC 電阻比</td><td>頻率 (MHz)、材料、銅厚 (μm)</td><td>δ (μm)、電阻比</td></tr>
+              <tr><td>17</td><td>臨界走線長度</td><td>判斷走線是否需要按傳輸線設計</td><td>上升時間 (ps)、εeff</td><td>Knee 頻率、臨界長度</td></tr>
+              <tr><td>18</td><td>傳播延遲</td><td>訊號在走線上的傳播時間</td><td>走線長度、εr、走線類型</td><td>延遲係數 (ps/mm)、總延遲 (ps)</td></tr>
+              <tr><td>19</td><td>反射係數 / RL</td><td>阻抗不匹配造成的反射</td><td>Z0 (Ω)、ZL (Ω)</td><td>Γ、回波損耗 (dB)、VSWR</td></tr>
+              <tr><td>20</td><td>串擾估算</td><td>相鄰走線串擾量，驗證 3W/5W 規則</td><td>走線間距 s、h、w、耦合長度</td><td>NEXT (dB)、3W/5W 判定</td></tr>
+              <tr><td>21</td><td>微帶線串擾電壓</td><td>直接計算串擾電壓幅度，判斷飽和/未飽和</td><td>S、H、l、εr、V、Tr</td><td>Tp (ns)、V_crosstalk (V)</td></tr>
+              <tr><td>22</td><td>帶狀線串擾電壓</td><td>支援對稱/非對稱帶狀線串擾電壓</td><td>S、H、h₁、h₂、l、εr、V、Tr</td><td>S_eff、K、Tp、V_crosstalk</td></tr>
+              <tr><td>23</td><td>等長計算</td><td>時序偏差換算走線長度補償量</td><td>目標延遲差 (ps)、εr、類型</td><td>需補償長度差</td></tr>
+              <tr><td>24</td><td>介質波長</td><td>特定頻率下 PCB 介質中的波長</td><td>頻率 (GHz)、εeff</td><td>λ、λ/10、λ/4</td></tr>
+              <tr><td>25</td><td>走線自感</td><td>孤立走線本身的寄生電感（無回流路徑）</td><td>l、w、t (μm)、評估頻率</td><td>L (nH)、感抗 (Ω)</td></tr>
+              <tr><td>26</td><td>回路電感</td><td>走線＋地平面回流路徑形成的完整回路電感</td><td>l、w、h（距地高度）、t (μm)、評估頻率</td><td>L_loop (nH)、感抗 (Ω)</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="help-tab-group">
+          <div class="help-tab-label">BGA 封裝</div>
+          <div class="help-table-wrap">
+            <table class="help-table">
+              <tr><th>#</th><th>名稱</th><th>用途</th><th>輸入</th><th>輸出</th></tr>
+              <tr><td>27</td><td>BGA Via 尺寸建議</td><td>計算對角間隙限制下的 Via Pad 最大直徑，及 Dog-bone 走線長度</td><td>球距 p、NSMD Pad d、Via Pad D、走線間距</td><td>D_max、Via Drill、Antipad、Dog-bone 長度</td></tr>
+              <tr><td>28</td><td>BGA 走線最小寬度</td><td>計算 n 條走線在兩 pad 之間所需的最小走線寬度與間距</td><td>pitch、NSMD Pad 直徑 d、走線條數 n</td><td>淨空間、最小 W、最小 S</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="help-tab-group">
+          <div class="help-tab-label">電源完整性</div>
+          <div class="help-table-wrap">
+            <table class="help-table">
+              <tr><th>#</th><th>名稱</th><th>用途</th><th>輸入</th><th>輸出</th></tr>
+              <tr><td>29</td><td>旁路電容 SRF</td><td>去耦電容有效頻率上限（自諧振頻率）</td><td>C (nF)、ESL (nH)、ESR (mΩ)、評估頻率</td><td>SRF (MHz)、指定頻率阻抗</td></tr>
+              <tr><td>30</td><td>PDN 目標阻抗</td><td>電源分配網路最大阻抗目標值</td><td>V_DD (V)、漣波 (%)、ΔI (A)</td><td>Z_target (mΩ)、ΔV (mV)</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h2>常用 PCB 材料參考值</h2>
+        <div class="help-table-wrap">
+          <table class="help-table">
+            <tr><th>材料</th><th>介電常數 εr</th><th>備註</th></tr>
+            <tr><td>FR-4</td><td>4.2 ～ 4.6</td><td>典型值 4.3；高頻（GHz）時略低</td></tr>
+            <tr><td>Rogers 4003C</td><td>3.55</td><td>低損耗 RF 板材</td></tr>
+            <tr><td>Rogers 4350B</td><td>3.66</td><td>低損耗 RF 板材</td></tr>
+            <tr><td>Megtron 6</td><td>3.6 ～ 3.7</td><td>高速數位板材</td></tr>
+            <tr><td colspan="3" style="padding-top:8px;color:var(--text-sec);">銅電阻率：1.724×10⁻⁸ Ω·m（20°C）</td></tr>
+          </table>
+        </div>
+        <h3 style="margin:12px 0 6px;font-size:0.85rem;color:var(--text-main);">銅厚 oz ↔ μm ↔ mil 換算</h3>
+        <div class="help-table-wrap">
+          <table class="help-table">
+            <tr><th>oz</th><th>μm</th><th>mil</th><th>常見用途</th></tr>
+            <tr><td>0.5 oz</td><td>17.5 μm</td><td>0.69 mil</td><td>精細線路、HDI</td></tr>
+            <tr><td>1 oz</td><td>35 μm</td><td>1.38 mil</td><td>一般訊號層（最常用）</td></tr>
+            <tr><td>2 oz</td><td>70 μm</td><td>2.76 mil</td><td>電源層、大電流走線</td></tr>
+            <tr><td>3 oz</td><td>105 μm</td><td>4.13 mil</td><td>大電流電源層</td></tr>
+            <tr><td>4 oz</td><td>140 μm</td><td>5.51 mil</td><td>特殊高電流應用</td></tr>
+            <tr><td colspan="4" style="color:var(--text-sec);font-size:0.8rem;">換算公式：μm = oz × 35.56&nbsp;（標稱 35 μm/oz）</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h2>常見設計目標參考</h2>
+        <div class="help-table-wrap">
+          <table class="help-table">
+            <tr><th>項目</th><th>典型目標值</th></tr>
+            <tr><td>單端阻抗（Microstrip / Stripline）</td><td>50 Ω</td></tr>
+            <tr><td>差分阻抗（USB、HDMI、LVDS、PCIe）</td><td>90 Ω 或 100 Ω</td></tr>
+            <tr><td>RF 天線饋線（CPWG / Microstrip）</td><td>50 Ω</td></tr>
+            <tr><td>Via Aspect Ratio 上限（標準製程）</td><td>8:1</td></tr>
+            <tr><td>Via Aspect Ratio 上限（HDI 製程）</td><td>12:1</td></tr>
+            <tr><td>最小 Annular Ring（IPC Class 2）</td><td>0.05 mm（HDI）/ 0.075 mm（標準）</td></tr>
+            <tr><td>PDN 目標阻抗（FPGA / CPU 核心電壓）</td><td>&lt; 10 mΩ</td></tr>
+            <tr><td>BGA Via-in-Pad 建議啟用球距</td><td>≤ 0.5 mm</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <h2>公式來源</h2>
+        <ul class="help-ul">
+          <li>走線電流：IPC-2221 Table 6-1 &nbsp;(I = k × ΔT⁰·⁴⁴ × A⁰·⁷²⁵)</li>
+          <li>Microstrip 阻抗：Hammerstad-Jensen 經驗公式</li>
+          <li>Stripline 阻抗：Wadell / IPC-2141 公式</li>
+          <li>CPWG 阻抗：Ghione-Naldi 共形映射法（橢圓積分 Hilberg 近似）</li>
+          <li>Via 電感：Goldfarb-Pucel 模型 &nbsp;(L = 5.08 × h × (ln(4h/d) + 1)，單位 nH，h 以英寸)</li>
+          <li>Via 電容：同軸電容模型 &nbsp;(C = 1.41 × εr × h / ln(D/d)，單位 pF，h 以英寸)</li>
+          <li>趨膚深度：δ = 503 × √(ρ / f) μm</li>
+          <li>傳播延遲：IPC-2141 經驗公式（Microstrip / Stripline）</li>
+          <li>微帶線串擾電壓：V_xt = V/(1+(S/H)²)×(Tp/Tr)（未飽和）或 V/(1+(S/H)²)（飽和）</li>
+          <li>帶狀線串擾電壓：K = S²_eff/(h₁eff·h₂eff)；飽和 V/(1+K²)，對稱時 K = 16S²/H²</li>
+          <li>走線自感：Grover 公式 &nbsp;L = 0.2l[ln(2l/(w+t)) + 0.5 + 0.2235(w+t)/l] nH</li>
+          <li>回路電感：L_loop = 0.4l × ln(4h/(0.8w+t)) nH</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h2>注意事項</h2>
+        <ul class="help-ul">
+          <li>本工具提供設計估算值，實際製板前請以 PCB EDA 工具的 <strong>Field Solver</strong> 進行精確阻抗仿真，並與板廠確認疊構。</li>
+          <li>阻抗計算在 w/h 比值 0.1 ～ 10 的範圍內最為準確，超出此範圍誤差會增大。</li>
+          <li>BGA pad 尺寸為通用建議值，實際設計應參考元件規格書（Datasheet）的 PCB Land Pattern。</li>
+        </ul>
+      </div>
+
+    </div><!-- .help-wrap -->
+  </div><!-- #tab-help -->
+
+</div><!-- #app -->
+<script>
+// ── Constants ──
+const CONST = {
+  rho_cu:    1.724e-8,
+  alpha_cu:  0.00393,
+  c_light:   2.998e8,
+  k_ext:     0.048,
+  k_int:     0.024,
+  oz_to_mil: 1.378,
+  k_cu:      385,
+};
+
+// ── Utils ──
+const UTILS = {
+  mmToMil: v => v / 0.0254,
+  milToMm: v => v * 0.0254,
+  mmToIn:  v => v / 25.4,
+  umToMil: v => v / 25.4,
+  umToM:   v => v * 1e-6,
+  mmToM:   v => v * 1e-3,
+  fmt:    (n, d=4) => parseFloat(n.toPrecision(d)),
+};
+
+// ── Unit state ──
+let UNIT = 'mm';
+
+function setUnit(u) {
+  if (u === UNIT) return;
+  const f = (u === 'mil') ? (1/0.0254) : 0.0254;
+  document.querySelectorAll('input[data-dim="len"]').forEach(el => {
+    const v = parseFloat(el.value);
+    if (!isNaN(v)) el.value = parseFloat((v * f).toPrecision(5));
+  });
+  const lbl = u;
+  document.querySelectorAll('.du').forEach(el => el.textContent = lbl);
+  document.getElementById('btn-mm').classList.toggle('active', u === 'mm');
+  document.getElementById('btn-mil').classList.toggle('active', u === 'mil');
+  UNIT = u;
+}
+
+// Read length input always in mm
+function mm(id) {
+  const v = +document.getElementById(id).value;
+  return UNIT === 'mil' ? UTILS.milToMm(v) : v;
+}
+
+// ── Calc ──
+const CALC = {};
+
+CALC.trace = {
+  ipcWidth(I, dT, t_mm, layer) {
+    if (dT <= 0) return { error: '溫升 ΔT 必須大於 0' };
+    if (I  <= 0) return { error: '電流必須大於 0' };
+    if (t_mm <= 0) return { error: '銅厚必須大於 0' };
+    const k = layer === 'ext' ? CONST.k_ext : CONST.k_int;
+    const T_mil = UTILS.mmToMil(t_mm);
+    const area  = Math.pow(I / (k * Math.pow(dT, 0.44)), 1/0.725);
+    const W_mil = area / T_mil;
+    return { area_mil2: area, W_mil, W_mm: UTILS.milToMm(W_mil), T_mil };
+  },
+  maxCurrent(W_mm, t_mm, dT, layer) {
+    if (dT <= 0) return { error: '溫升 ΔT 必須大於 0' };
+    if (W_mm <= 0) return { error: '走線寬度必須大於 0' };
+    if (t_mm <= 0) return { error: '銅厚必須大於 0' };
+    const k = layer === 'ext' ? CONST.k_ext : CONST.k_int;
+    const area = UTILS.mmToMil(W_mm) * UTILS.mmToMil(t_mm);
+    return { I_max: k * Math.pow(dT, 0.44) * Math.pow(area, 0.725), area_mil2: area };
+  },
+  resistance(L_mm, W_mm, t_mm, T_degC, I) {
+    if (W_mm <= 0) return { error: '走線寬度必須大於 0' };
+    if (t_mm <= 0) return { error: '銅厚必須大於 0' };
+    const T_m = t_mm * 1e-3;
+    const R0  = CONST.rho_cu * UTILS.mmToM(L_mm) / (UTILS.mmToM(W_mm) * T_m);
+    const R   = R0 * (1 + CONST.alpha_cu * (T_degC - 20));
+    return { R_ohm: R, R0_ohm: R0, Vdrop_mV: I*R*1000, P_mW: I*I*R*1000 };
+  },
+};
+
+CALC.impedance = {
+  microstripZ0(w, h, t, er) {
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    const ratio = w / h;
+    const eeff = (er+1)/2 + (er-1)/2 * Math.pow(1+12*h/w, -0.5);
+    const Z0 = ratio <= 1
+      ? (60/Math.sqrt(eeff)) * Math.log(8*h/w + w/(4*h))
+      : (120*Math.PI/Math.sqrt(eeff)) / (ratio + 1.393 + 0.667*Math.log(ratio+1.444));
+    const warn = (ratio < 0.1 || ratio > 10)
+      ? `w/h=${ratio.toFixed(2)} 超出有效範圍 [0.1,10]，結果僅供參考` : null;
+    return { Z0, eeff, ratio, warn };
+  },
+  striplineZ0(w, b, t, er) {
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    const denom = 0.67*Math.PI*(0.8*w+t);
+    if (denom >= 4*b) return { error: '走線幾何不合理：請縮小 w 或增加 b' };
+    return { Z0: (60/Math.sqrt(er)) * Math.log(4*b/denom) };
+  },
+  diffMicrostrip(w, h, t, s, er) {
+    const r = CALC.impedance.microstripZ0(w,h,t,er);
+    if (r.error) return r;
+    return { Zdiff: 2*r.Z0*(1-0.347*Math.exp(-2.9*s/h)), Z0_single:r.Z0, eeff:r.eeff, warn:r.warn };
+  },
+  diffStripline(w, b, t, s, er) {
+    const r = CALC.impedance.striplineZ0(w,b,t,er);
+    if (r.error) return r;
+    return { Zdiff: 2*r.Z0*(1-0.374*Math.exp(-2.9*s/b)), Z0_single:r.Z0 };
+  },
+  cpwgZ0(w, g, h, er) {
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    if (g <= 0 || w <= 0 || h <= 0) return { error: '尺寸必須 > 0' };
+    // Elliptic integral ratio K(k)/K'(k) approximation (Hilberg)
+    function kkp(k) {
+      const kp = Math.sqrt(1 - k*k);
+      if (k*k <= 0.5) return Math.PI / Math.log(2*(1+Math.sqrt(kp))/(1-Math.sqrt(kp)));
+      return Math.log(2*(1+Math.sqrt(k))/(1-Math.sqrt(k))) / Math.PI;
+    }
+    const k1 = w / (w + 2*g);
+    const k3 = Math.tanh(Math.PI*w/(4*h)) / Math.tanh(Math.PI*(w+2*g)/(4*h));
+    const q1 = kkp(k1), q3 = kkp(k3);
+    const eeff = 1 + (er-1)/2 * q3/q1;
+    const Z0 = 60*Math.PI / (Math.sqrt(eeff) * (q1 + q3));
+    return { Z0, eeff, k1, q1 };
+  },
+};
+
+CALC.via = {
+  current(d_mm, tp_um, dT) {
+    const d_mil = UTILS.mmToMil(d_mm), t_mil = UTILS.umToMil(tp_um);
+    if (t_mil >= d_mil/2) return { error: '電鍍厚度 ≥ 孔半徑' };
+    if (dT <= 0) return { error: '溫升 ΔT 必須大於 0' };
+    const area = Math.PI*t_mil*(d_mil-t_mil);
+    return { I_max: CONST.k_ext*Math.pow(dT,0.44)*Math.pow(area,0.725), area_mil2:area };
+  },
+  resistance(d_mm, tp_um, h_mm) {
+    const d_m=UTILS.mmToM(d_mm), t_m=UTILS.umToM(tp_um);
+    if (t_m >= d_m/2) return { error: '電鍍厚度 ≥ 孔半徑' };
+    return { R_mohm: CONST.rho_cu*UTILS.mmToM(h_mm)/(Math.PI*t_m*(d_m-t_m))*1000 };
+  },
+  inductance(d_mm, h_mm, f_MHz) {
+    const h_in=UTILS.mmToIn(h_mm), d_in=UTILS.mmToIn(d_mm);
+    const L_nH = 5.08*h_in*(Math.log(4*h_in/d_in)+1);
+    return { L_nH, Z_ohm: 2*Math.PI*f_MHz*1e6*L_nH*1e-9 };
+  },
+  capacitance(h_mm, d_pad_mm, D_ap_mm, er) {
+    if (D_ap_mm <= d_pad_mm) return { error: 'Antipad 必須大於 Pad' };
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    const h=UTILS.mmToIn(h_mm), d=UTILS.mmToIn(d_pad_mm), D=UTILS.mmToIn(D_ap_mm);
+    return { C_pF: 1.41*er*h/Math.log(D/d) };
+  },
+  stubResonance(stub_mm, er) {
+    if (stub_mm <= 0) return { error: 'Stub 長度必須 > 0' };
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    const f = CONST.c_light / (4 * UTILS.mmToM(stub_mm) * Math.sqrt(er));
+    return { f_GHz: f/1e9 };
+  },
+  annularRing(pad_mm, drill_mm, min_mm) {
+    if (drill_mm >= pad_mm) return { error: '鑽孔直徑必須小於 pad 直徑' };
+    const ring = (pad_mm - drill_mm) / 2;
+    const pass = ring >= min_mm;
+    return { ring_mm: ring, pass, margin_mm: ring - min_mm };
+  },
+  aspectRatio(h_mm, d_mm) {
+    if (d_mm <= 0) return { error: '鑽孔直徑必須 > 0' };
+    const ar = h_mm / d_mm;
+    const grade = ar <= 8 ? '標準製程 OK' : ar <= 10 ? '進階製程' : ar <= 12 ? 'HDI 製程' : '超出一般製程能力';
+    return { ar: UTILS.fmt(ar, 3), grade };
+  },
+};
+
+CALC.si = {
+  skinDepth(f_MHz, rho, t_um) {
+    if (f_MHz <= 0) return { delta_um: Infinity, note: 'DC — 無趨膚效應' };
+    const delta_um = 503*Math.sqrt(rho/(f_MHz*1e6))*1e6;
+    return { delta_um, ratio: t_um>0 ? t_um/(2*delta_um) : null };
+  },
+  criticalLength(t_rise_ps, eeff) {
+    if (t_rise_ps <= 0) return { error: '上升時間必須 > 0' };
+    if (eeff < 1) return { error: 'εeff 必須 ≥ 1' };
+    const v = CONST.c_light/Math.sqrt(eeff);
+    const f_knee = 0.35/(t_rise_ps*1e-12);
+    return {
+      f_knee_GHz: f_knee/1e9,
+      l_rise_mm:  v*t_rise_ps*1e-12/6*1000,
+      l_lambda_mm:v/(10*f_knee)*1000,
+      v_prop_mm_ps:v*1e-9,
+    };
+  },
+  propDelay(L_mm, er, type) {
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    const TD = type==='ms' ? 85*Math.sqrt(0.475*er+0.67) : 85*Math.sqrt(er);
+    return { TD_ps_per_in:TD, total_ps:TD*UTILS.mmToIn(L_mm), TD_ps_per_mm:TD/25.4 };
+  },
+  reflection(Z0, ZL) {
+    if (Z0<=0||ZL<=0) return { error: 'Z0 和 ZL 必須 > 0' };
+    const g=(ZL-Z0)/(ZL+Z0), a=Math.abs(g);
+    return { gamma:g, RL_dB:-20*Math.log10(a), VSWR:(1+a)/(1-a), T_pwr:(1-g*g)*100 };
+  },
+  crosstalk(s_mm, h_mm, w_mm, len_mm) {
+    if (s_mm<=0||h_mm<=0||w_mm<=0) return { error: '尺寸必須 > 0' };
+    const ratio = s_mm / h_mm;
+    const Kb = 1 / (1 + ratio*ratio);
+    const NEXT_dB = 20 * Math.log10(Kb);
+    const D = w_mm + s_mm;
+    const rule3W = D >= 3*w_mm;
+    const rule5W = D >= 5*w_mm;
+    return { Kb: UTILS.fmt(Kb,4), NEXT_dB: UTILS.fmt(NEXT_dB,2), s_over_h: UTILS.fmt(ratio,2), rule3W, rule5W, D_mm: D };
+  },
+  lengthMatch(td_ps, er, type) {
+    if (er < 1) return { error: 'εr 必須 ≥ 1' };
+    const TD_per_mm = (type==='ms' ? 85*Math.sqrt(0.475*er+0.67) : 85*Math.sqrt(er)) / 25.4;
+    const dL_mm = td_ps / TD_per_mm;
+    return { dL_mm, TD_per_mm: UTILS.fmt(TD_per_mm,4) };
+  },
+  wavelength(f_GHz, eeff) {
+    if (f_GHz <= 0) return { error: '頻率必須 > 0' };
+    if (eeff < 1) return { error: 'εeff 必須 ≥ 1' };
+    const lambda_m = CONST.c_light / (f_GHz*1e9 * Math.sqrt(eeff));
+    const lambda_mm = lambda_m * 1000;
+    return { lambda_mm, lambda10_mm: lambda_mm/10, lambda4_mm: lambda_mm/4 };
+  },
+  crosstalkSL(s_mm, H_mm, h1_mm, h2_mm, l_mm, er, V, Tr_ns) {
+    if (s_mm<=0||H_mm<=0||h1_mm<=0||h2_mm<=0||l_mm<=0) return { error: '尺寸必須 > 0' };
+    if (h1_mm>=H_mm||h2_mm>=H_mm) return { error: 'h₁、h₂ 必須小於 H' };
+    if (V<=0) return { error: '電壓必須 > 0' };
+    if (Tr_ns<=0) return { error: '上升時間必須 > 0' };
+    const dh = h2_mm - h1_mm;
+    const S_eff = Math.sqrt(s_mm*s_mm + dh*dh);
+    const h1eff = h1_mm*(H_mm-h1_mm)/H_mm;
+    const h2eff = h2_mm*(H_mm-h2_mm)/H_mm;
+    const K = (S_eff*S_eff)/(h1eff*h2eff);
+    const l_in = l_mm/25.4;
+    const Tp = 2*l_in*0.085*Math.sqrt(0.475*er+0.67); // ns (85 ps/in = 0.085 ns/in)
+    const saturated = Tp > Tr_ns;
+    const Vc = saturated ? V/(1+K*K) : V/(1+K)*(Tp/Tr_ns);
+    return { S_eff_mm: UTILS.fmt(S_eff,3), h1eff_mm: UTILS.fmt(h1eff,3), h2eff_mm: UTILS.fmt(h2eff,3),
+             K: UTILS.fmt(K,3), Tp: UTILS.fmt(Tp,3), saturated, Vc: UTILS.fmt(Vc,4) };
+  },
+  crosstalkV(s_mm, h_mm, l_mm, er, V, Tr_ns) {
+    if (s_mm<=0||h_mm<=0||l_mm<=0) return { error: '尺寸必須 > 0' };
+    if (V<=0) return { error: '電壓必須 > 0' };
+    if (Tr_ns<=0) return { error: '上升時間必須 > 0' };
+    const l_in = l_mm / 25.4;
+    const Tp = 2 * l_in * 0.085 * Math.sqrt(0.475*er + 0.67); // ns (85 ps/in = 0.085 ns/in)
+    const SH = s_mm / h_mm;
+    const denom = 1 + SH*SH;
+    const saturated = Tp > Tr_ns;
+    const Vc = saturated ? V/denom : V/denom * (Tp/Tr_ns);
+    return { Tp: UTILS.fmt(Tp,3), SH: UTILS.fmt(SH,2), saturated, Vc: UTILS.fmt(Vc,4) };
+  },
+  traceInd(l_mm, w_mm, t_um, f_MHz) {
+    if (l_mm<=0||w_mm<=0||t_um<=0) return { error: '尺寸必須 > 0' };
+    const t_mm = t_um/1000;
+    const wt = w_mm + t_mm;
+    // Grover formula for partial self-inductance of a rectangular conductor
+    const L_nH = 0.2 * l_mm * (Math.log(2*l_mm/wt) + 0.5 + 0.2235*wt/l_mm);
+    const Z_ohm = f_MHz>0 ? 2*Math.PI*f_MHz*1e6*L_nH*1e-9 : null;
+    return { L_nH: UTILS.fmt(L_nH,4), Z_ohm: Z_ohm?UTILS.fmt(Z_ohm,4):null };
+  },
+  loopInd(l_mm, w_mm, h_mm, t_um, f_MHz) {
+    if (l_mm<=0||w_mm<=0||h_mm<=0||t_um<=0) return { error: '尺寸必須 > 0' };
+    const t_mm = t_um/1000;
+    const den = 0.8*w_mm + t_mm;  // effective diameter denominator
+    if (4*h_mm <= den) return { error: '走線高度相對寬度過小，請增加 h' };
+    // L_loop = (μ₀/π)×l×ln(2h/r_eff), r_eff=(0.8w+t)/2 → 0.4×l×ln(4h/(0.8w+t))
+    const L_nH = 0.4 * l_mm * Math.log(4*h_mm/den);
+    const Z_ohm = f_MHz>0 ? 2*Math.PI*f_MHz*1e6*L_nH*1e-9 : null;
+    return { L_nH: UTILS.fmt(L_nH,4), Z_ohm: Z_ohm?UTILS.fmt(Z_ohm,4):null };
+  },
+};
+
+CALC.pi = {
+  capSRF(c_nF, esl_nH, esr_mohm, f_MHz) {
+    const C = c_nF * 1e-9, L = esl_nH * 1e-9;
+    const f_srf = 1 / (2*Math.PI*Math.sqrt(L*C));
+    const f_srf_MHz = f_srf / 1e6;
+    let Z_at_f = null;
+    if (f_MHz > 0) {
+      const w = 2*Math.PI*f_MHz*1e6;
+      const Xc = 1/(w*C), Xl = w*L;
+      Z_at_f = Math.sqrt((esr_mohm/1000)**2 + (Xl-Xc)**2);
+    }
+    return { f_srf_MHz: UTILS.fmt(f_srf_MHz,4), Z_at_f: Z_at_f ? UTILS.fmt(Z_at_f*1000,4) : null, capacitive: f_MHz < f_srf_MHz };
+  },
+  targetZ(vdd, ripple_pct, di) {
+    if (vdd<=0||di<=0) return { error: 'V_DD 和 ΔI 必須 > 0' };
+    const dv = vdd * ripple_pct / 100;
+    const z = dv / di;
+    return { z_mohm: UTILS.fmt(z*1000,4), dv_mV: UTILS.fmt(dv*1000,4) };
+  },
+};
+
+CALC.bga = {
+  viaSizing(pitch, pad_n, clr) {
+    if (pitch<=0||pad_n<=0) return { error: '尺寸必須 > 0' };
+    if (pad_n>=pitch) return { error: 'NSMD Pad 必須小於球距' };
+    const D_max = UTILS.fmt(pitch * Math.SQRT2 - pad_n - 0.2, 3);
+    if (D_max <= 0) return { error: 'NSMD Pad 過大，無法配置過孔（D_max ≤ 0）' };
+    const drill = UTILS.fmt(D_max - 2*0.1, 3);
+    const antipad = UTILS.fmt(D_max + 2*clr, 3);
+    const D_dog = UTILS.fmt(pitch - pad_n, 3);        // max via pad for dog-bone at midpoint
+    const drill_dog = UTILS.fmt(D_dog - 2*0.1, 3);
+    const rec = pitch<=0.5 ? 'Via-in-Pad（建議）' : pitch<=0.8 ? 'Dog-bone（1 trace/row）' : 'Dog-bone（多層出線）';
+    return { D_max, drill, antipad, D_dog, drill_dog, rec };
+  },
+  minTraceWidth(pitch, pad, n) {
+    if (pitch <= pad) return { error: '球距必須大於 pad 直徑' };
+    if (n < 1) return { error: '走線條數必須 ≥ 1' };
+    const space = pitch - pad;
+    const W = space / (2*n + 1);
+    return { space_mm: UTILS.fmt(space, 4), W_mm: UTILS.fmt(W, 4) };
+  },
+};
+
+// ── UI ──
+const UI = {
+  row(label, value, unit='') {
+    return `<div class="result-row"><span class="result-label">${label}</span><span class="result-value">${value}<span class="result-unit">${unit}</span></span></div>`;
+  },
+  // Length result row — auto-converts mm value to current UNIT
+  rowL(label, mm_val, digits=4) {
+    const v = UNIT==='mil' ? UTILS.fmt(UTILS.mmToMil(mm_val), digits) : UTILS.fmt(mm_val, digits);
+    return this.row(label, v, UNIT);
+  },
+  render(id, html, type='ok') {
+    const el=document.getElementById(id);
+    if (el) el.innerHTML=`<div class="result-${type}">${html}</div>`;
+  },
+  err(id, msg) { this.render(id, msg, 'err'); },
+
+  dispatch: {
+    'ipc-width'() {
+      const r=CALC.trace.ipcWidth(+document.getElementById('ipc-current').value, +document.getElementById('ipc-dt').value, mm('ipc-t'), document.getElementById('ipc-layer').value);
+      if (r.error) return UI.err('result-ipc-width',r.error);
+      UI.render('result-ipc-width',
+        UI.rowL('最小走線寬度', r.W_mm) +
+        UI.rowL('銅厚 T', UTILS.milToMm(r.T_mil)));
+    },
+    'max-current'() {
+      const r=CALC.trace.maxCurrent(mm('mc-width'),mm('mc-t'),+document.getElementById('mc-dt').value,document.getElementById('mc-layer').value);
+      if (r.error) return UI.err('result-max-current',r.error);
+      UI.render('result-max-current', UI.row('最大承載電流',UTILS.fmt(r.I_max,4),'A'));
+    },
+    'trace-res'() {
+      const r=CALC.trace.resistance(mm('tr-len'),mm('tr-width'),mm('tr-t'),+document.getElementById('tr-temp').value,+document.getElementById('tr-current').value);
+      if (r.error) return UI.err('result-trace-res',r.error);
+      const T=document.getElementById('tr-temp').value;
+      UI.render('result-trace-res',
+        UI.row('電阻 @ '+T+'°C',UTILS.fmt(r.R_ohm*1000,4),'mΩ') +
+        UI.row('電阻 @ 20°C',UTILS.fmt(r.R0_ohm*1000,4),'mΩ') +
+        UI.row('電壓降',UTILS.fmt(r.Vdrop_mV,4),'mV') +
+        UI.row('功率損耗',UTILS.fmt(r.P_mW,4),'mW'),
+        r.R_ohm<1?'ok':'warn');
+    },
+    'microstrip'() {
+      const r=CALC.impedance.microstripZ0(mm('ms-w'),mm('ms-h'),mm('ms-t'),+document.getElementById('ms-er').value);
+      if (r.error) return UI.err('result-microstrip',r.error);
+      let h=UI.row('特性阻抗 Z0',UTILS.fmt(r.Z0,4),'Ω')+UI.row('有效介電常數 εeff',UTILS.fmt(r.eeff,4),'')+UI.row('w/h 比',UTILS.fmt(r.ratio,3),'');
+      if (r.warn) h+=`<div class="result-note">⚠ ${r.warn}</div>`;
+      UI.render('result-microstrip',h,r.warn?'warn':'ok');
+    },
+    'stripline'() {
+      const r=CALC.impedance.striplineZ0(mm('sl-w'),mm('sl-b'),mm('sl-t'),+document.getElementById('sl-er').value);
+      if (r.error) return UI.err('result-stripline',r.error);
+      UI.render('result-stripline',UI.row('特性阻抗 Z0',UTILS.fmt(r.Z0,4),'Ω'));
+    },
+    'diff-micro'() {
+      const r=CALC.impedance.diffMicrostrip(mm('dm-w'),mm('dm-h'),mm('dm-t'),mm('dm-s'),+document.getElementById('dm-er').value);
+      if (r.error) return UI.err('result-diff-micro',r.error);
+      let h=UI.row('差分阻抗 Zdiff',UTILS.fmt(r.Zdiff,4),'Ω')+UI.row('單端阻抗 Z0',UTILS.fmt(r.Z0_single,4),'Ω')+UI.row('εeff',UTILS.fmt(r.eeff,4),'');
+      if (r.warn) h+=`<div class="result-note">⚠ ${r.warn}</div>`;
+      UI.render('result-diff-micro',h,r.warn?'warn':'ok');
+    },
+    'diff-strip'() {
+      const r=CALC.impedance.diffStripline(mm('ds-w'),mm('ds-b'),mm('ds-t'),mm('ds-s'),+document.getElementById('ds-er').value);
+      if (r.error) return UI.err('result-diff-strip',r.error);
+      UI.render('result-diff-strip',UI.row('差分阻抗 Zdiff',UTILS.fmt(r.Zdiff,4),'Ω')+UI.row('單端阻抗 Z0',UTILS.fmt(r.Z0_single,4),'Ω'));
+    },
+    'via-current'() {
+      const r=CALC.via.current(mm('vc-drill'),+document.getElementById('vc-plating').value,+document.getElementById('vc-dt').value);
+      if (r.error) return UI.err('result-via-current',r.error);
+      UI.render('result-via-current',UI.row('最大承載電流',UTILS.fmt(r.I_max,4),'A')+UI.row('銅截面積',UTILS.fmt(r.area_mil2,4),'mil²'));
+    },
+    'via-res'() {
+      const r=CALC.via.resistance(mm('vr-drill'),+document.getElementById('vr-plating').value,mm('vr-height'));
+      if (r.error) return UI.err('result-via-res',r.error);
+      UI.render('result-via-res',UI.row('Via 電阻',UTILS.fmt(r.R_mohm,4),'mΩ'));
+    },
+    'via-ind'() {
+      const r=CALC.via.inductance(mm('vl-drill'),mm('vl-height'),+document.getElementById('vl-freq').value);
+      if (r.error) return UI.err('result-via-ind',r.error);
+      UI.render('result-via-ind',UI.row('Via 電感',UTILS.fmt(r.L_nH,4),'nH')+UI.row('感抗 @ '+document.getElementById('vl-freq').value+' MHz',UTILS.fmt(r.Z_ohm,4),'Ω'));
+    },
+    'via-cap'() {
+      const r=CALC.via.capacitance(mm('vcp-height'),mm('vcp-pad'),mm('vcp-antipad'),+document.getElementById('vcp-er').value);
+      if (r.error) return UI.err('result-via-cap',r.error);
+      UI.render('result-via-cap',UI.row('Via 寄生電容',UTILS.fmt(r.C_pF,4),'pF'));
+    },
+    'skin-depth'() {
+      const r=CALC.si.skinDepth(+document.getElementById('sk-freq').value,+document.getElementById('sk-mat').value,+document.getElementById('sk-thick').value);
+      if (r.note) return UI.render('result-skin-depth',`<div class="result-note">${r.note}</div>`,'warn');
+      UI.render('result-skin-depth',
+        UI.row('趨膚深度 δ',UTILS.fmt(r.delta_um,4),'μm') +
+        UI.row('導體厚 / (2δ)',r.ratio?UTILS.fmt(r.ratio,3):'N/A','') +
+        (r.ratio>1?`<div class="result-note">⚠ AC 電阻約 DC 的 ${UTILS.fmt(r.ratio,3)} 倍</div>`:''),
+        r.ratio>3?'warn':'ok');
+    },
+    'crit-len'() {
+      const r=CALC.si.criticalLength(+document.getElementById('cl-rise').value,+document.getElementById('cl-er').value);
+      if (r.error) return UI.err('result-crit-len',r.error);
+      UI.render('result-crit-len',
+        UI.row('Knee 頻率',UTILS.fmt(r.f_knee_GHz,4),'GHz') +
+        UI.rowL('臨界長度 (上升時間法)', r.l_rise_mm) +
+        UI.rowL('臨界長度 (λ/10 法)', r.l_lambda_mm) +
+        UI.row('傳播速度', UNIT==='mil' ? UTILS.fmt(r.v_prop_mm_ps*UTILS.mmToMil(1),4) : UTILS.fmt(r.v_prop_mm_ps,4), UNIT+'/ps'));
+    },
+    'prop-delay'() {
+      const r=CALC.si.propDelay(mm('pd-len'),+document.getElementById('pd-er').value,document.getElementById('pd-type').value);
+      if (r.error) return UI.err('result-prop-delay',r.error);
+      UI.render('result-prop-delay',
+        UI.row('延遲係數', UNIT==='mil' ? UTILS.fmt(r.TD_ps_per_in/1000,4) : UTILS.fmt(r.TD_ps_per_mm,4), 'ps/'+UNIT) +
+        UI.row('總傳播延遲',UTILS.fmt(r.total_ps,4),'ps'));
+    },
+    'reflection'() {
+      const r=CALC.si.reflection(+document.getElementById('rf-z0').value,+document.getElementById('rf-zl').value);
+      if (r.error) return UI.err('result-reflection',r.error);
+      UI.render('result-reflection',
+        UI.row('反射係數 Γ',UTILS.fmt(r.gamma,4),'') +
+        UI.row('回波損耗',isFinite(r.RL_dB)?UTILS.fmt(r.RL_dB,4):'∞','dB') +
+        UI.row('VSWR',UTILS.fmt(r.VSWR,4),'') +
+        UI.row('傳輸功率',UTILS.fmt(r.T_pwr,4),'%'),
+        Math.abs(r.gamma)<0.1?'ok':'warn');
+    },
+    'bga-via'() {
+      const r=CALC.bga.viaSizing(mm('bga-pitch'),mm('bga-pad'),mm('bga-clr'));
+      if (r.error) return UI.err('result-bga-via',r.error);
+      const badDrill = r.drill <= 0;
+      const badDogDrill = r.drill_dog <= 0;
+      let h = '<div class="result-note" style="font-weight:600;margin-bottom:2px">① 對角線間隙限制（IPC 0.1 mm × 兩側）</div>' +
+              UI.rowL('最大過孔焊盤 D_max', r.D_max) +
+              (badDrill ? UI.row('通孔直徑','— 環寬不足，需縮小 via pad','') : UI.rowL('通孔直徑 Drill', r.drill)) +
+              UI.rowL('Antipad', r.antipad) +
+              '<div class="result-note" style="font-weight:600;margin:4px 0 2px">② Dog-bone 走線限制（via 置於相鄰兩 pad 中點）</div>' +
+              UI.rowL('Dog-bone 最大 Via Pad', r.D_dog) +
+              (badDogDrill ? UI.row('Dog-bone Drill','— 環寬不足，建議 Via-in-Pad','') : UI.rowL('Dog-bone Drill', r.drill_dog));
+      h += `<div class="result-note">建議佈局：${r.rec}（選 D ≤ ${r.D_dog} mm 可走 dog-bone，D ≤ ${r.D_max} mm 可用 via-in-pad）</div>`;
+      UI.render('result-bga-via', h, (badDrill&&badDogDrill)?'warn':'ok');
+    },
+    'bga-mintrace'() {
+      const n = Math.round(+document.getElementById('bmt-n').value);
+      const r = CALC.bga.minTraceWidth(mm('bmt-pitch'), mm('bmt-pad'), n);
+      if (r.error) return UI.err('result-bga-mintrace', r.error);
+      UI.render('result-bga-mintrace',
+        UI.rowL('Pad 間淨空間 (p − d)', r.space_mm) +
+        UI.rowL('最小走線寬度 W', r.W_mm) +
+        UI.rowL('最小走線間距 S', r.W_mm) +
+        UI.row('分段數 (2n+1)', 2*n+1, '等份'));
+    },
+    // ── Impedance: CPWG ──
+    'cpwg'() {
+      const r=CALC.impedance.cpwgZ0(mm('cpw-w'),mm('cpw-g'),mm('cpw-h'),+document.getElementById('cpw-er').value);
+      if (r.error) return UI.err('result-cpwg',r.error);
+      UI.render('result-cpwg',
+        UI.row('特性阻抗 Z0',UTILS.fmt(r.Z0,4),'Ω') +
+        UI.row('有效介電常數 εeff',UTILS.fmt(r.eeff,4),''));
+    },
+    // ── Via: Stub / Annular Ring / Aspect Ratio ──
+    'via-stub'() {
+      const r=CALC.via.stubResonance(mm('vs-stub'),+document.getElementById('vs-er').value);
+      if (r.error) return UI.err('result-via-stub',r.error);
+      const type = r.f_GHz < 5 ? 'warn' : 'ok';
+      let h=UI.row('¼ λ 共振頻率',UTILS.fmt(r.f_GHz,4),'GHz') +
+             UI.rowL('Stub 長度',mm('vs-stub'));
+      if (r.f_GHz < 10) h+=`<div class="result-note">⚠ 共振頻率偏低，建議考慮 back-drilling</div>`;
+      UI.render('result-via-stub',h,type);
+    },
+    'annular-ring'() {
+      const r=CALC.via.annularRing(mm('ar-pad'),mm('ar-drill'),mm('ar-min'));
+      if (r.error) return UI.err('result-annular-ring',r.error);
+      UI.render('result-annular-ring',
+        UI.rowL('環寬 (Annular Ring)', r.ring_mm) +
+        UI.row('判定', r.pass ? '✓ PASS' : '✗ FAIL','') +
+        UI.rowL('餘量', r.margin_mm),
+        r.pass ? 'ok' : 'err');
+    },
+    'aspect-ratio'() {
+      const r=CALC.via.aspectRatio(mm('asp-h'),mm('asp-d'));
+      if (r.error) return UI.err('result-aspect-ratio',r.error);
+      const type = r.ar <= 8 ? 'ok' : r.ar <= 10 ? 'warn' : 'err';
+      UI.render('result-aspect-ratio',
+        UI.row('板厚孔徑比',r.ar,': 1') +
+        UI.row('製程等級',r.grade,''),
+        type);
+    },
+    // ── SI: Crosstalk / Length Match / Wavelength ──
+    'crosstalk'() {
+      const r=CALC.si.crosstalk(mm('xt-s'),mm('xt-h'),mm('xt-w'),mm('xt-len'));
+      if (r.error) return UI.err('result-crosstalk',r.error);
+      const type = r.rule3W ? 'ok' : 'warn';
+      let h=UI.row('近端串擾 Kb',r.Kb,'') +
+             UI.row('NEXT',r.NEXT_dB,'dB') +
+             UI.row('s / h',r.s_over_h,'') +
+             UI.rowL('中心距 D',r.D_mm) +
+             UI.row('3W rule (D ≥ 3W)', r.rule3W ? '✓ PASS':'✗ FAIL','') +
+             UI.row('5W rule (D ≥ 5W)', r.rule5W ? '✓ PASS':'✗ FAIL','');
+      if (!r.rule3W) h+=`<div class="result-note">⚠ 未滿足 3W rule，建議增加走線間距</div>`;
+      UI.render('result-crosstalk',h,type);
+    },
+    'len-match'() {
+      const r=CALC.si.lengthMatch(+document.getElementById('lm-td').value,+document.getElementById('lm-er').value,document.getElementById('lm-type').value);
+      if (r.error) return UI.err('result-len-match',r.error);
+      UI.render('result-len-match',
+        UI.rowL('需補償走線長度差',r.dL_mm) +
+        UI.row('延遲係數',UNIT==='mil'?UTILS.fmt(r.TD_per_mm*0.0254,4):r.TD_per_mm,'ps/'+UNIT));
+    },
+    'wavelength'() {
+      const r=CALC.si.wavelength(+document.getElementById('wl-freq').value,+document.getElementById('wl-er').value);
+      if (r.error) return UI.err('result-wavelength',r.error);
+      UI.render('result-wavelength',
+        UI.rowL('波長 λ',r.lambda_mm) +
+        UI.rowL('λ/10（傳輸線效應起始）',r.lambda10_mm) +
+        UI.rowL('λ/4（共振長度）',r.lambda4_mm));
+    },
+    'xt-sl-voltage'() {
+      const H=mm('sxt-H');
+      const sym=document.getElementById('sxt-sym').value==='sym';
+      const h1=sym?H/2:mm('sxt-h1');
+      const h2=sym?H/2:mm('sxt-h2');
+      const r=CALC.si.crosstalkSL(mm('sxt-s'),H,h1,h2,mm('sxt-len'),+document.getElementById('sxt-er').value,+document.getElementById('sxt-v').value,+document.getElementById('sxt-tr').value);
+      if (r.error) return UI.err('result-xt-sl-voltage',r.error);
+      const state=r.saturated?'warn':'ok';
+      UI.render('result-xt-sl-voltage',
+        UI.rowL('有效間距 S_eff',r.S_eff_mm)+
+        UI.rowL('h₁eff',r.h1eff_mm)+
+        UI.rowL('h₂eff',r.h2eff_mm)+
+        UI.row('耦合參數 K',r.K,'')+
+        UI.row('來回傳播時間 Tp',r.Tp,'ns')+
+        UI.row('狀態',r.saturated?'飽和（Tp > Tr，串擾最大值）':'未飽和（Tp ≤ Tr，串擾與長度成正比）','')+
+        UI.row('串擾電壓 V_crosstalk',r.Vc,'V'),
+        state);
+    },
+    'xt-voltage'() {
+      const r=CALC.si.crosstalkV(mm('xv-s'),mm('xv-h'),mm('xv-len'),+document.getElementById('xv-er').value,+document.getElementById('xv-v').value,+document.getElementById('xv-tr').value);
+      if (r.error) return UI.err('result-xt-voltage',r.error);
+      const state = r.saturated ? 'warn' : 'ok';
+      UI.render('result-xt-voltage',
+        UI.row('S/H 比值',r.SH,'') +
+        UI.row('來回傳播時間 Tp',r.Tp,'ns') +
+        UI.row('狀態',r.saturated?'飽和（Tp > Tr，串擾為最大值）':'未飽和（Tp ≤ Tr，串擾與長度成正比）','') +
+        UI.row('串擾電壓 V_crosstalk',r.Vc,'V'),
+        state);
+    },
+    'trace-ind'() {
+      const r=CALC.si.traceInd(mm('ti-len'),mm('ti-w'),+document.getElementById('ti-t').value,+document.getElementById('ti-freq').value);
+      if (r.error) return UI.err('result-trace-ind',r.error);
+      let h=UI.row('走線自感 L',r.L_nH,'nH');
+      if (r.Z_ohm!==null) h+=UI.row('感抗 @ '+document.getElementById('ti-freq').value+' MHz',r.Z_ohm,'Ω');
+      UI.render('result-trace-ind',h);
+    },
+    'loop-ind'() {
+      const r=CALC.si.loopInd(mm('li-len'),mm('li-w'),mm('li-h'),+document.getElementById('li-t').value,+document.getElementById('li-freq').value);
+      if (r.error) return UI.err('result-loop-ind',r.error);
+      let h=UI.row('回路電感 L_loop',r.L_nH,'nH');
+      if (r.Z_ohm!==null) h+=UI.row('感抗 @ '+document.getElementById('li-freq').value+' MHz',r.Z_ohm,'Ω');
+      UI.render('result-loop-ind',h);
+    },
+    // ── PI: Cap SRF / PDN Target ──
+    'cap-srf'() {
+      const r=CALC.pi.capSRF(+document.getElementById('cap-c').value,+document.getElementById('cap-esl').value,+document.getElementById('cap-esr').value,+document.getElementById('cap-freq').value);
+      let h=UI.row('自諧振頻率 SRF',r.f_srf_MHz,'MHz');
+      if (r.Z_at_f!==null) {
+        h+=UI.row('阻抗 @ '+document.getElementById('cap-freq').value+' MHz',r.Z_at_f,'mΩ');
+        h+=UI.row('特性',r.capacitive?'電容性（有效去耦）':'電感性（去耦失效）','');
+      }
+      UI.render('result-cap-srf',h,r.capacitive?'ok':'warn');
+    },
+    'pdn-target'() {
+      const r=CALC.pi.targetZ(+document.getElementById('pdn-v').value,+document.getElementById('pdn-pct').value,+document.getElementById('pdn-di').value);
+      if (r.error) return UI.err('result-pdn-target',r.error);
+      const type = r.z_mohm < 10 ? 'warn' : 'ok';
+      let h=UI.row('目標阻抗 Z_target',r.z_mohm,'mΩ') +
+             UI.row('允許電壓漣波 ΔV',r.dv_mV,'mV');
+      if (r.z_mohm < 10) h+=`<div class="result-note">⚠ 目標阻抗 < 10 mΩ，需要仔細的 PDN 設計</div>`;
+      UI.render('result-pdn-target',h,type);
+    },
+  },
+
+  init() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab=btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+tab).classList.add('active');
+      });
+    });
+    document.addEventListener('click', e => {
+      const btn=e.target.closest('.calc-btn[data-calc]');
+      if (!btn) return;
+      const key=btn.dataset.calc;
+      const box=document.getElementById('result-'+key);
+      if (box && box.innerHTML) { box.innerHTML=''; return; }
+      const fn=UI.dispatch[key];
+      if (fn) fn();
+    });
+  }
+};
+
+UI.init();
+</script>
+</body>
+</html>
